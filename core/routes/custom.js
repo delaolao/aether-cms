@@ -2,14 +2,51 @@ import { marked } from "marked"
 import { enhancedFormatPagination, getSiblingCustomPagesNavigation } from "../utils/pagination-utils.js"
 import { prepareTemplateData, processTemplateData, handle404 } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
+import { detectSearchTemplates, generateSearchIndex, isSearchTemplate } from "../utils/search-utils.js"
 
 export function setupCustomRoutes(app, systems) {
     const { themeManager, contentManager, hookSystem, settingsService } = systems
+
+    // Smart search detection and index generation
+    // This runs once per request cycle and detects if search templates exist
+    let searchIndexGenerated = false
+    let searchIndexUrl = null
+    let searchStats = null
+
+    const detectAndGenerateSearch = async () => {
+        if (searchIndexGenerated) return // Only run once per request cycle
+
+        try {
+            // Detect if theme has search templates
+            const searchTemplates = detectSearchTemplates(themeManager)
+
+            if (searchTemplates.length > 0) {
+                console.log(`Detected search templates: ${searchTemplates.map((t) => t.name).join(", ")}`)
+
+                // Generate search index
+                const result = await generateSearchIndex(themeManager, contentManager)
+
+                if (result.success) {
+                    searchIndexUrl = result.indexUrl
+                    searchStats = result.stats
+                    console.log(`Search index ready at: ${searchIndexUrl}`)
+                }
+            }
+
+            searchIndexGenerated = true
+        } catch (error) {
+            console.error("Error in search detection:", error)
+            searchIndexGenerated = true // Prevent retries
+        }
+    }
 
     // Match up to 3 levels of nested paths (e.g., /docs, /docs/intro, /docs/api/examples)
     // The first segment (:path) is required
     // The second (:subpath) and third (:subSubPath) are optional
     app.get("/:path/:subpath?/:subSubPath?", async (req, res) => {
+        // Run search detection first
+        await detectAndGenerateSearch()
+
         // Destructure the path segments from the route parameters
         const { path, subpath, subSubPath } = req.params
 
@@ -136,6 +173,16 @@ export function setupCustomRoutes(app, systems) {
                 isCustomTemplate: true,
             }
 
+            // Check if this is a search template and add search functionality
+            if (isSearchTemplate(templatePath) && searchIndexUrl) {
+                baseTemplateData.isSearchPage = true
+                baseTemplateData.searchIndexUrl = searchIndexUrl
+                baseTemplateData.searchStats = searchStats
+                baseTemplateData.hasSearchIndex = true
+
+                console.log(`Search page detected: ${customPath}`)
+            }
+
             // Add the content page data
             let templateData = {
                 ...baseTemplateData,
@@ -156,7 +203,7 @@ export function setupCustomRoutes(app, systems) {
             }
 
             // Determine if this template needs pagination
-            const paginatedTemplates = new Set(["blog", "archive", "articles", "news", "search"])
+            const paginatedTemplates = new Set(["blog", "archive", "articles", "news"])
             const needsPagination = paginatedTemplates.has(path) || paginatedTemplates.has(customPath)
 
             // Determine if this template needs taxonomy counts
