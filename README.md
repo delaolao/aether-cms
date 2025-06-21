@@ -2,6 +2,9 @@
 
 A lightweight, file-based CMS built with vanilla JavaScript and [LiteNode](https://github.com/LebCit/litenode) that generates blazing-fast static sites.
 
+> [!NOTE]  
+> If you find value in Aether or want to help it grow, your support — whether it's feedback, sharing, contributing, or funding — can make a real difference. The long-term goal is to build a sustainable open-source project that stays fast, independent, and truly community-driven. If you'd like to support Aether, giving it a star would be greatly appreciated and genuinely helpful.
+
 ## ✨ Features
 
 ### Content Management
@@ -298,17 +301,18 @@ Thanks for being a good human 💙
 -   **Documentation**: [Visit Aether Docs](https://aether-cms.pages.dev/)
 -   **Issues**: [Report bugs](https://github.com/lebcit/aether-cms/issues)
 -   **Discussions**: [Community forum](https://github.com/lebcit/aether-cms/discussions)
+-   **Resources**: [Articles](https://lebcit.github.io/tag/aether-cms/)
 
 ## 🎯 Roadmap
 
 -   Scheduled Publishing
--   Search functionality
+-   Search functionality - **Implemented in [v1.2.0](https://github.com/LebCit/aether-cms/releases/tag/v1.2.0)**
 -   Advanced user permissions
 -   Page caching with duration
 -   Plugin system expansion
 -   Comment system with moderation
 -   Advanced SEO tools
--   Editor enhancements
+-   Editor enhancements - **Implemented in [v1.1.0](https://github.com/LebCit/aether-cms/releases/tag/v1.1.0)**
 -   New themes added to the marketplace
 -   Simplify update system
 -   And that’s just the beginning…
