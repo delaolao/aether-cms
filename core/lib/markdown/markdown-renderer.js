@@ -85,6 +85,20 @@ export function getVideoInfo(src) {
         }
     }
 
+    // PeerTube — watch pages (/w/<id>, /videos/watch/<id>) and embed URLs
+    // (/videos/embed/<id>) all map to the iframe embed endpoint.
+    const peertubeWatch = src.match(/^https?:\/\/([^/]+)\/w\/([^/?#]+)/)
+    const peertubeLegacy = src.match(/^https?:\/\/([^/]+)\/videos\/watch\/([^/?#]+)/)
+    const peertubeEmbed = src.match(/^https?:\/\/([^/]+)\/videos\/embed\/([^/?#]+)/)
+    if (peertubeWatch || peertubeLegacy) {
+        const host = (peertubeWatch || peertubeLegacy)[1]
+        const videoId = (peertubeWatch || peertubeLegacy)[2]
+        return { type: "peertube", id: videoId, embedUrl: `https://${host}/videos/embed/${videoId}` }
+    }
+    if (peertubeEmbed) {
+        return { type: "peertube", embedUrl: src }
+    }
+
     // Local / generic
     if (!src.startsWith("http") && !src.startsWith("/")) {
         return { type: "local", embedUrl: `/videos/${src}` }
@@ -399,7 +413,7 @@ function createExtensions(options) {
             renderer(token) {
                 const info = getVideoInfo(token.url)
                 const caption = token.caption ? `<div class="video-caption">${escapeHtml(token.caption)}</div>` : ""
-                if (info.type === "youtube" || info.type === "vimeo") {
+                if (info.type === "youtube" || info.type === "vimeo" || info.type === "peertube") {
                     return `<div class="video-embed"><iframe src="${escapeHtml(info.embedUrl)}" class="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="${escapeHtml(token.caption || "Video")}"></iframe></div>${caption}`
                 }
                 return `<div class="video-embed"><video src="${escapeHtml(info.embedUrl)}" controls preload="metadata" class="video-local"></video></div>${caption}`

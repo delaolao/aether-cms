@@ -47,5 +47,5 @@
   
   <!-- Text -->
   <text x="95" y="45" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff">AETHER</text>
-  <text x="95" y="65" font-family="Arial, sans-serif" font-size="14" fill="#ffffff" fill-opacity="0.7">NEXT-GEN CMS</text>
+  <text x="95" y="65" font-family="Arial, sans-serif" font-size="13" fill="#ffffff" fill-opacity="0.7">teacherGeng's CMS</text>
 </svg>
