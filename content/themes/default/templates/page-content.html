@@ -6,6 +6,8 @@
     {{#if metadata.pageType === "normal"}}
     <div class="page-content">{{ content }}</div>
 
+    {{#include("partials/wiki-links.html")}}
+
     {{#else}}
     <!--This is for custom pages and will be applied to the blog since it's the only custom page that we have-->
     <div class="page-content">

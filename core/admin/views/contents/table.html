@@ -1,31 +1,31 @@
 <div class="table-container">
     <div class="table-header">
-        <h1>Manage {{title | capitalize}}</h1>
+        <h1><span data-i18n="table_manage">Manage</span> <span data-i18n="{{tableContent = "posts" ? "nav_posts" : "nav_pages"}}">{{title | capitalize}}</span></h1>
         <div class="header-actions">
             <a href="/aether/{{tableContent}}/edit" class="btn btn-primary">
                 <span class="add-icon">+</span>
-                Add New {{tableContent = "posts" ? "Post" : "Page"}}
+                <span data-i18n="{{tableContent = "posts" ? "table_addPost" : "table_addPage"}}">Add New {{tableContent = "posts" ? "Post" : "Page"}}</span>
             </a>
-            <button id="download-csv" class="btn btn-outline">Export CSV</button>
+            <button id="download-csv" class="btn btn-outline" data-i18n="table_exportCsv">Export CSV</button>
         </div>
     </div>
 
     <!-- Bulk Actions -->
     <div class="bulk-actions">
         <select id="bulk-action">
-            <option value="">Bulk Actions</option>
-            <option value="publish">Publish</option>
-            <option value="draft">Set to Draft</option>
-            <option value="delete">Delete</option>
+            <option value="" data-i18n="table_bulkActions">Bulk Actions</option>
+            <option value="publish" data-i18n="publish">Publish</option>
+            <option value="draft" data-i18n="setToDraft">Set to Draft</option>
+            <option value="delete" data-i18n="delete">Delete</option>
         </select>
-        <button id="apply-bulk" class="btn btn-sm">Apply</button>
+        <button id="apply-bulk" class="btn btn-sm" data-i18n="apply">Apply</button>
     </div>
 
     <!-- Bulk Status Indicator -->
     <div class="bulk-status hidden">
         <div class="status-content">
             <div class="status-spinner"></div>
-            <div class="status-message">Processing...</div>
+            <div class="status-message" data-i18n="table_processing">Processing...</div>
         </div>
     </div>
 

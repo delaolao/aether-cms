@@ -9,8 +9,26 @@
  *   @param {Object} themeManager - Used primarily for theme-related operations when settings change
  *                                 (e.g., refreshing active theme when site settings are updated)
  */
+import { getWikilinkIndexCached, clearWikilinkCache } from "../lib/markdown/markdown-renderer.js"
+import { clearRelationGraphCache } from "../lib/markdown/wiki-relations.js"
+
 export function setupContentApi(app, systems) {
     const { contentManager, hookSystem, themeManager, settingsService, authenticate } = systems
+
+    // Wikilink index: title → URL map for [[wikilink]] resolution (used by the
+    // admin editor preview to match frontend rendering).
+    app.get("/api/wikilinks", authenticate, async (req, res) => {
+        try {
+            const index = await getWikilinkIndexCached(contentManager)
+            const data = {}
+            index.forEach((value, key) => {
+                data[key] = value
+            })
+            res.json({ success: true, data })
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message })
+        }
+    })
 
     // Get all posts
     app.get("/api/posts", authenticate, async (req, res) => {
@@ -89,6 +107,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after post creation
             hookSystem.doAction("post_created", post)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.status(201).json({ success: true, id: post.id })
         } catch (error) {
@@ -131,6 +151,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after post update
             hookSystem.doAction("post_updated", post)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.json({ success: true, data: post })
         } catch (error) {
@@ -152,6 +174,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after post deletion
             hookSystem.doAction("post_deleted", req.params.id)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.json({ success: true })
         } catch (error) {
@@ -423,6 +447,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after page creation
             hookSystem.doAction("page_created", page)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.status(201).json({ success: true, id: page.id })
         } catch (error) {
@@ -509,6 +535,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after page update
             hookSystem.doAction("page_updated", page)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.json({ success: true, data: page })
         } catch (error) {
@@ -530,6 +558,8 @@ export function setupContentApi(app, systems) {
 
             // Run action hook after page deletion
             hookSystem.doAction("page_deleted", req.params.id)
+            clearWikilinkCache()
+            clearRelationGraphCache()
 
             res.json({ success: true })
         } catch (error) {

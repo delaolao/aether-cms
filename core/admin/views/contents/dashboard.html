@@ -1,75 +1,75 @@
 <div class="dashboard">
-    <h1>Dashboard</h1>
+    <h1 data-i18n="dashboard_title">Dashboard</h1>
 
     <div class="dashboard-stats">
         <div class="stat-card">
             <div class="stat-icon">📝</div>
             <div class="stat-content">
-                <h3>Posts</h3>
+                <h3 data-i18n="dashboard_posts">Posts</h3>
                 <p class="stat-number">{{ counts.posts }}</p>
             </div>
-            <a href="/aether/table/posts" class="stat-action">Manage</a>
+            <a href="/aether/table/posts" class="stat-action" data-i18n="manage">Manage</a>
         </div>
 
         <div class="stat-card">
             <div class="stat-icon">📄</div>
             <div class="stat-content">
-                <h3>Pages</h3>
+                <h3 data-i18n="dashboard_pages">Pages</h3>
                 <p class="stat-number">{{ counts.pages }}</p>
             </div>
-            <a href="/aether/table/pages" class="stat-action">Manage</a>
+            <a href="/aether/table/pages" class="stat-action" data-i18n="manage">Manage</a>
         </div>
 
         <div class="stat-card">
             <div class="stat-icon">👤</div>
             <div class="stat-content">
-                <h3>Users</h3>
+                <h3 data-i18n="dashboard_users">Users</h3>
                 <p class="stat-number">{{ counts.users }}</p>
             </div>
-            <a href="/aether/users" class="stat-action">Manage</a>
+            <a href="/aether/users" class="stat-action" data-i18n="manage">Manage</a>
         </div>
     </div>
 
     <div class="dashboard-quick-actions">
-        <h2>Quick Actions</h2>
+        <h2 data-i18n="dashboard_quickActions">Quick Actions</h2>
         <div class="actions-grid">
             <a href="/aether/posts/edit" class="action-card">
                 <span class="action-icon">➕</span>
-                <span class="action-text">Add New Post</span>
+                <span class="action-text" data-i18n="dashboard_addPost">Add New Post</span>
             </a>
 
             <a href="/aether/pages/edit" class="action-card">
                 <span class="action-icon">➕</span>
-                <span class="action-text">Add New Page</span>
+                <span class="action-text" data-i18n="dashboard_addPage">Add New Page</span>
             </a>
 
             <a href="/aether/media" class="action-card">
                 <span class="action-icon">🖼️</span>
-                <span class="action-text">Upload Media</span>
+                <span class="action-text" data-i18n="dashboard_uploadMedia">Upload Media</span>
             </a>
 
             <a href="/aether/settings" class="action-card">
                 <span class="action-icon">⚙️</span>
-                <span class="action-text">Update Settings</span>
+                <span class="action-text" data-i18n="dashboard_updateSettings">Update Settings</span>
             </a>
         </div>
     </div>
 
     <div class="dashboard-site-info">
-        <h2>Site Information</h2>
+        <h2 data-i18n="dashboard_siteInfo">Site Information</h2>
         <div class="info-card">
             <div class="info-row">
-                <div class="info-label">Site Title:</div>
+                <div class="info-label" data-i18n="settings_siteTitle">Site Title:</div>
                 <div class="info-value">{{ site.siteTitle }}</div>
             </div>
 
             <div class="info-row">
-                <div class="info-label">Description:</div>
+                <div class="info-label" data-i18n="settings_siteDescription">Description:</div>
                 <div class="info-value">{{ site.siteDescription }}</div>
             </div>
 
             <div class="info-row">
-                <div class="info-label">Active Theme:</div>
+                <div class="info-label" data-i18n="settings_activeTheme">Active Theme:</div>
                 <div class="info-value">{{ site.activeTheme }}</div>
             </div>
         </div>

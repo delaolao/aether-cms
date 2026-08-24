@@ -67,6 +67,7 @@ export class SettingsService {
                 siteDescription: "A site built with Aether",
                 postsPerPage: 10,
                 activeTheme: "default",
+                uiLanguage: "zh",
                 footerCode: "Content in Motion. Powered by Aether.",
             }
 
@@ -77,7 +78,9 @@ export class SettingsService {
                         // Empty file, use defaults
                         this.settings = { ...defaultSettings }
                     } else {
-                        this.settings = JSON.parse(data)
+                        // Merge defaults so newly-added keys (e.g. uiLanguage)
+                        // are present even for existing settings files.
+                        this.settings = { ...defaultSettings, ...JSON.parse(data) }
                     }
                 } catch (parseError) {
                     console.warn("Error parsing settings.json, using defaults:", parseError)
@@ -98,6 +101,7 @@ export class SettingsService {
                 siteTitle: "My Aether Site",
                 siteDescription: "An error occurred loading settings",
                 activeTheme: "default",
+                uiLanguage: "zh",
                 footerCode: "Content in Motion. Powered by Aether.",
             }
             return this.settings

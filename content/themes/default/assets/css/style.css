@@ -702,3 +702,190 @@ tbody tr:nth-child(even) {
         color: #0066cc; /* Same hover color as regular links */
     }
 }
+
+/* ============================================================
+   Obsidian-style markdown extensions (wikilinks, callouts,
+   math, video embeds, hashtags, file attachments)
+   ============================================================ */
+
+/* Wikilinks */
+.wikilink {
+    color: #0066cc;
+    border-bottom: 1px dotted #0066cc;
+    text-decoration: none;
+}
+.wikilink:hover {
+    border-bottom-style: solid;
+}
+.wikilink-unresolved {
+    color: #999;
+    border-bottom: 1px dotted #bbb;
+    cursor: not-allowed;
+}
+
+/* KaTeX blocks */
+.math-block {
+    overflow-x: auto;
+    padding: 0.5rem 0;
+    margin: 1rem 0;
+}
+
+/* Obsidian callouts */
+.callout {
+    border-left: 4px solid #888;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    background: #f8f9fa;
+}
+.callout-title {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+.callout-warning { border-left-color: #e67e22; background: #fdf3e7; }
+.callout-info    { border-left-color: #2980b9; background: #eaf4fb; }
+.callout-tip     { border-left-color: #27ae60; background: #eafaf1; }
+.callout-danger  { border-left-color: #c0392b; background: #fdecea; }
+.callout-note    { border-left-color: #7f8c8d; background: #f4f6f7; }
+.callout-success { border-left-color: #27ae60; background: #eafaf1; }
+.callout-question{ border-left-color: #8e44ad; background: #f4ecf7; }
+
+/* Video embeds */
+.video-embed {
+    position: relative;
+    width: 100%;
+    margin: 1rem 0;
+    background: #000;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.video-iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+}
+.video-local {
+    display: block;
+    width: 100%;
+    max-height: 75vh;
+}
+.video-caption {
+    font-size: 0.85rem;
+    color: #777;
+    text-align: center;
+    margin-top: 0.25rem;
+}
+.asciinema-embed .video-iframe {
+    aspect-ratio: auto;
+    height: 480px;
+}
+
+/* File attachments */
+.file-attachment {
+    display: inline-block;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+.file-attachment:hover {
+    background: #eef;
+}
+
+/* Hashtags */
+.hashtag {
+    color: #0066cc;
+    text-decoration: none;
+    font-family: monospace;
+}
+.hashtag:hover {
+    text-decoration: underline;
+}
+
+/* Embedded images */
+.embedded-image {
+    max-width: 100%;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+/* Wiki links (backlinks + related notes) */
+.wiki-links {
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+.wiki-links h3 { margin-bottom: 1rem; font-size: 1.3rem; }
+.wiki-block { margin-bottom: 1.25rem; }
+.wiki-block h4 {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 0.5rem;
+}
+.wiki-backlinks, .wiki-related {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.wiki-backlinks li, .wiki-related li {
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed #eee;
+}
+.wiki-desc {
+    display: block;
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 0.15rem;
+}
+.wiki-graph-link {
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+}
+
+/* Knowledge graph page */
+.graph-page {
+    overflow: hidden; /* keep the graph from spilling out and adding scrollbars */
+    max-width: 100%;
+}
+.graph-page .graph-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.graph-toolbar input[type="text"],
+.graph-toolbar select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+.graph-toolbar button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid #0066cc;
+    background: #0066cc;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.graph-toolbar button:hover { background: #0055aa; }
+.graph-hint { font-size: 0.8rem; color: #999; }
+#knowledge-graph {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: min(620px, 70vh);
+    min-height: 320px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+}
+.graph-noscript { color: #c0392b; }

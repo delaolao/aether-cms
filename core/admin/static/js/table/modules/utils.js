@@ -30,6 +30,14 @@ export function dateFormatter(cell) {
     return value ? new Date(value).toLocaleDateString() : ""
 }
 
+// Format the display date, preferring the author-chosen publishDate over the
+// updatedAt/createdAt timestamps (which are set to "now" on save).
+export function publishDateFormatter(cell) {
+    const row = cell.getRow().getData()
+    const value = row.publishDate || row.updatedAt || row.createdAt
+    return value ? new Date(value).toLocaleDateString() : ""
+}
+
 // Format the action buttons
 export function actionButtons(cell, contentType) {
     const rowData = cell.getRow().getData()

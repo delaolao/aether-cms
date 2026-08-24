@@ -3,8 +3,9 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="admin-lang" content="{{ adminLang }}" />
         <link rel="icon" href="/core/admin/static/images/aether-favicon.svg" type="image/svg+xml" />
-        <title>Login | Aether</title>
+        <title data-i18n="login_title">Login | Aether</title>
         <link rel="stylesheet" href="/core/admin/static/css/login.css" />
     </head>
     <body class="login-page">
@@ -13,28 +14,35 @@
                 <img src="/core/admin/static/images/aether-login-logo.svg" alt="Aether CMS" />
             </div>
             <div class="login-form-container">
-                <h2>Welcome back</h2>
+                <h2 data-i18n="login_welcome">Welcome back</h2>
                 {{#if error }}
                 <div class="alert alert-danger">! {{ error }}</div>
                 {{/if}}
                 <form action="/aether/login" method="post" class="login-form">
                     <div class="form-group">
-                        <label for="username">Username</label>
+                        <label for="username" data-i18n="login_username">Username</label>
                         <input type="text" id="username" name="username" required autofocus />
                     </div>
                     <div class="form-group">
-                        <label for="password">Password</label>
+                        <label for="password" data-i18n="login_password">Password</label>
                         <input type="password" id="password" name="password" required />
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Log In →</button>
+                        <button type="submit" class="btn btn-primary" data-i18n="login_submit">Log In →</button>
                     </div>
                 </form>
             </div>
             <div class="login-footer">
-                <p>&copy; {{ year }} Aether Next-Gen CMS</p>
+                <p><span data-i18n="login_footer">© {{ year }} Aether Next-Gen CMS</span></p>
             </div>
         </div>
+
+        <script src="/core/admin/static/js/i18n.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                if (window.I18N) window.I18N.init()
+            })
+        </script>
 
         <script>
             // Simple animation for form elements

@@ -99,6 +99,19 @@ export class EditorCommands {
                 // Do nothing here - our custom handler in editor-media.js will handle this
                 // This effectively prevents the default image insertion behavior
                 return
+            // Obsidian-style extensions
+            case "wikilink":
+                this.insertWikiLink()
+                break
+            case "callout":
+                this.insertCallout()
+                break
+            case "video":
+                this.insertVideoEmbed()
+                break
+            case "iframe":
+                this.insertRawHtmlEmbed()
+                break
         }
 
         // Update toolbar state
@@ -447,6 +460,109 @@ export class EditorCommands {
 
         // Update the preview and trigger input event
         this.triggerInputEvent()
+    }
+
+    /**
+     * Insert an inline snippet at the current cursor position (or wrap selection).
+     * @param {string} text - Text to insert
+     */
+    insertInline(text) {
+        const textarea = this.ui.textarea
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end)
+        textarea.focus()
+        const cursor = start + text.length
+        textarea.selectionStart = cursor
+        textarea.selectionEnd = cursor
+        this.state.setContent(textarea.value)
+        this.triggerInputEvent()
+    }
+
+    /**
+     * Insert a block element surrounded by blank lines at the cursor.
+     * @param {string} text - Block text to insert
+     */
+    insertBlock(text) {
+        const textarea = this.ui.textarea
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const prevChar = start > 0 ? textarea.value.charAt(start - 1) : ""
+        const nextChar = end < textarea.value.length ? textarea.value.charAt(end) : ""
+        const prefix = prevChar !== "\n" && start > 0 ? "\n\n" : ""
+        const suffix = nextChar !== "\n" && end < textarea.value.length ? "\n\n" : ""
+        const replacement = prefix + text + suffix
+        textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end)
+        textarea.focus()
+        const cursor = start + prefix.length + text.length
+        textarea.selectionStart = cursor
+        textarea.selectionEnd = cursor
+        this.state.setContent(textarea.value)
+        this.triggerInputEvent()
+    }
+
+    /**
+     * Insert an Obsidian [[wikilink]].
+     */
+    insertWikiLink() {
+        const selected = this.ui.textarea.value.substring(
+            this.ui.textarea.selectionStart,
+            this.ui.textarea.selectionEnd
+        )
+        const title = prompt("Wiki link target (note title or slug):", selected || "")
+        if (title === null || !title.trim()) return
+        const label = selected && selected !== title ? selected : ""
+        this.insertInline(`[[${title.trim()}${label ? "|" + label : ""}]]`)
+    }
+
+    /**
+     * Insert an Obsidian callout block.
+     */
+    insertCallout() {
+        const type = prompt("Callout type (note, info, tip, warning, danger, success, question):", "note")
+        if (type === null || !type.trim()) return
+        const title = prompt("Callout title (optional):", "") || ""
+        const text = `> [!${type.toUpperCase()}] ${title}\n> `
+        const textarea = this.ui.textarea
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const selected = textarea.value.substring(start, end)
+        const replacement = selected ? `${text}${selected}` : text
+        textarea.value = textarea.value.substring(0, start) + replacement + textarea.value.substring(end)
+        textarea.focus()
+        const cursor = start + replacement.length
+        textarea.selectionStart = cursor
+        textarea.selectionEnd = cursor
+        this.state.setContent(textarea.value)
+        this.triggerInputEvent()
+    }
+
+    /**
+     * Insert a [video:url|caption] embed (rendered as responsive iframe/video
+     * on the frontend — YouTube, Vimeo, direct video files, asciinema).
+     */
+    insertVideoEmbed() {
+        const url = prompt(
+            "Video URL (YouTube, Vimeo, asciinema or direct video file):\n\nExample: https://www.youtube.com/watch?v=xxxx",
+            "https://www.youtube.com/watch?v="
+        )
+        if (url === null || !url.trim()) return
+        const caption = prompt("Caption (optional):", "") || ""
+        const tag = `[video:${url.trim()}${caption ? "|" + caption : ""}]`
+        this.insertBlock(tag)
+    }
+
+    /**
+     * Insert raw HTML — typically an <iframe> embed (e.g. Bilibili, custom
+     * players). The renderer passes raw HTML through unchanged.
+     */
+    insertRawHtmlEmbed() {
+        const html = prompt(
+            "Paste raw HTML to embed (e.g. an <iframe> snippet):",
+            '<iframe src="https://player.bilibili.com/player.html?bvid=BV1xx411c7mD" width="560" height="315" scrolling="no" frameborder="no" allowfullscreen="true"></iframe>'
+        )
+        if (html === null || !html.trim()) return
+        this.insertBlock(html.trim())
     }
 
     /**

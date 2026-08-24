@@ -14,8 +14,14 @@ import { MarkdownEditor } from "./markdown-editor/markdown-editor.js"
 import { MediaSelector } from "./media-selector/media-selector.js"
 import { EditorEnhancements } from "./modules/editor-enhancements.js"
 import { relatedPostsManager } from "./modules/related-posts-manager.js"
+import { initEditorMarkdownExtensions } from "./markdown-editor/modules/editor-markdown-extensions.js"
 
 document.addEventListener("DOMContentLoaded", function () {
+    // Register Obsidian-style markdown extensions ([[wikilinks]], callouts,
+    // math, video embeds, hashtags) so the live preview matches frontend
+    // rendering.
+    initEditorMarkdownExtensions()
+
     // Get content type and item ID from URL
     const pathParts = window.location.pathname.split("/")
     const contentType = pathParts[2] // "posts" or "pages"

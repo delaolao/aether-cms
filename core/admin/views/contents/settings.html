@@ -1,16 +1,16 @@
 <!-- Settings Page Template -->
 <div class="settings-container">
-    <h1>Site Settings</h1>
+    <h1 data-i18n="settings_siteSettings">Site Settings</h1>
 
     <div class="settings-tabs">
-        <button class="tab-button active" data-tab="general">General</button>
-        <button class="tab-button" data-tab="appearance">Appearance</button>
-        <button class="tab-button" data-tab="content">Content</button>
-        <button class="tab-button" data-tab="advanced">Advanced</button>
-        <button class="tab-button" data-tab="menu">Menu</button>
+        <button class="tab-button active" data-tab="general" data-i18n="settings_general">General</button>
+        <button class="tab-button" data-tab="appearance" data-i18n="settings_appearance">Appearance</button>
+        <button class="tab-button" data-tab="content" data-i18n="settings_content">Content</button>
+        <button class="tab-button" data-tab="advanced" data-i18n="settings_advanced">Advanced</button>
+        <button class="tab-button" data-tab="menu" data-i18n="settings_menu">Menu</button>
         <!-- Add static site tab button if user is admin -->
         {{#if user.role === "admin"}}
-        <button class="tab-button" data-tab="static">Static Site</button>
+        <button class="tab-button" data-tab="static" data-i18n="settings_staticSite">Static Site</button>
         {{/if}}
     </div>
 
@@ -18,47 +18,62 @@
         <!-- General Settings Tab -->
         <div class="tab-content active" id="general-tab">
             <div class="settings-section">
-                <h2>Site Information</h2>
+                <h2 data-i18n="settings_siteInfo">Site Information</h2>
 
                 <div class="form-group">
-                    <label for="siteTitle">Site Title</label>
+                    <label for="siteTitle" data-i18n="settings_siteTitle">Site Title</label>
                     <input type="text" id="siteTitle" name="siteTitle" value="{{ settings.siteTitle }}" required />
-                    <p class="help-text">The name of your site, displayed in the header and browser tab.</p>
+                    <p class="help-text" data-i18n="settings_siteTitleHelp">The name of your site, displayed in the header and browser tab.</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="siteDescription">Site Description</label>
+                    <label for="siteDescription" data-i18n="settings_siteDescription">Site Description</label>
                     <textarea id="siteDescription" name="siteDescription" rows="3">
 {{ settings.siteDescription }}</textarea
                     >
-                    <p class="help-text">A short description of your site. This may be used by search engines.</p>
+                    <p class="help-text" data-i18n="settings_siteDescriptionHelp">A short description of your site. This may be used by search engines.</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="siteUrl">Site URL</label>
+                    <label for="siteUrl" data-i18n="settings_siteUrl">Site URL</label>
                     <input type="url" id="siteUrl" name="siteUrl" value="{{ settings.siteUrl }}" />
-                    <p class="help-text">The full URL of your site (e.g., https://example.com).</p>
+                    <p class="help-text" data-i18n="settings_siteUrlHelp">The full URL of your site (e.g., https://example.com).</p>
                 </div>
             </div>
 
             <div class="settings-section">
-                <h2>Admin Contact</h2>
+                <h2 data-i18n="settings_adminContact">Admin Contact</h2>
 
                 <div class="form-group">
-                    <label for="adminEmail">Admin Email</label>
+                    <label for="adminEmail" data-i18n="settings_adminEmail">Admin Email</label>
                     <input type="email" id="adminEmail" name="adminEmail" value="{{ settings.adminEmail }}" />
-                    <p class="help-text">Used for system notifications and password recovery.</p>
+                    <p class="help-text" data-i18n="settings_adminEmailHelp">Used for system notifications and password recovery.</p>
                 </div>
             </div>
+
+            {{#if user.role === "admin"}}
+            <div class="settings-section">
+                <h2 data-i18n="settings_uiLanguage">UI Language</h2>
+
+                <div class="form-group">
+                    <label for="uiLanguage" data-i18n="settings_uiLanguage">UI Language</label>
+                    <select id="uiLanguage" name="uiLanguage" class="ui-language-select">
+                        <option value="zh" {{ settings.uiLanguage="zh" ? `selected` : `` }} data-i18n="settings_lang_zh">中文</option>
+                        <option value="en" {{ settings.uiLanguage="en" ? `selected` : `` }} data-i18n="settings_lang_en">English</option>
+                    </select>
+                    <p class="help-text" data-i18n="settings_uiLanguageDesc">Choose the display language of the admin interface.</p>
+                </div>
+            </div>
+            {{/if}}
         </div>
 
         <!-- Appearance Settings Tab -->
         <div class="tab-content" id="appearance-tab">
             <div class="settings-section">
-                <h2>Theme</h2>
+                <h2 data-i18n="settings_theme">Theme</h2>
 
                 <div class="form-group">
-                    <label for="activeTheme">Active Theme</label>
+                    <label for="activeTheme" data-i18n="settings_activeTheme">Active Theme</label>
                     <select id="activeTheme" name="activeTheme">
                         {{#each themes}}
                         <option value="{{ name }}" {{ name="settings.activeTheme" ? `selected` : `` }}>
@@ -66,11 +81,11 @@
                         </option>
                         {{/each}}
                     </select>
-                    <p class="help-text">Select the theme for your site's front end.</p>
+                    <p class="help-text" data-i18n="settings_activeThemeHelp">Select the theme for your site's front end.</p>
                 </div>
 
                 <div id="theme-preview" class="theme-preview">
-                    <h3>Theme Preview</h3>
+                    <h3 data-i18n="settings_themePreview">Theme Preview</h3>
                     <div class="theme-preview-img">
                         {{#if selectedTheme.info.screenshot}}
                         <img
@@ -95,38 +110,38 @@
             </div>
 
             <div class="settings-section">
-                <h2>Customization</h2>
+                <h2 data-i18n="settings_customization">Customization</h2>
 
                 <div class="form-group">
-                    <label for="siteLogo">Site Logo</label>
+                    <label for="siteLogo" data-i18n="settings_siteLogo">Site Logo</label>
                     <div class="media-select-wrapper">
                         <input type="hidden" id="siteLogo" name="siteLogo" value="{{ settings.siteLogo }}" />
                         <div id="logo-preview" class="media-preview">
                             {{#if settings.siteLogo}}
                             <img src="/content/uploads{{ settings.siteLogo }}" alt="Site Logo" />
-                            <button type="button" class="remove-media">Remove</button>
+                            <button type="button" class="remove-media" data-i18n="remove">Remove</button>
                             {{#else}}
-                            <button type="button" id="select-logo" class="select-media">Select Logo</button>
+                            <button type="button" id="select-logo" class="select-media" data-i18n="settings_selectLogo">Select Logo</button>
                             {{/if}}
                         </div>
                     </div>
-                    <p class="help-text">Your site logo (recommended size: 200×60 pixels).</p>
+                    <p class="help-text" data-i18n="settings_siteLogoHelp">Your site logo (recommended size: 200×60 pixels).</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="siteIcon">Site Icon (Favicon)</label>
+                    <label for="siteIcon" data-i18n="settings_siteIcon">Site Icon (Favicon)</label>
                     <div class="media-select-wrapper">
                         <input type="hidden" id="siteIcon" name="siteIcon" value="{{ settings.siteIcon }}" />
                         <div id="icon-preview" class="media-preview">
                             {{#if settings.siteIcon}}
                             <img src="/content/uploads{{ settings.siteIcon }}" alt="Site Icon" />
-                            <button type="button" class="remove-media">Remove</button>
+                            <button type="button" class="remove-media" data-i18n="remove">Remove</button>
                             {{#else}}
-                            <button type="button" id="select-icon" class="select-media">Select Icon</button>
+                            <button type="button" id="select-icon" class="select-media" data-i18n="settings_selectLogo">Select Logo</button>
                             {{/if}}
                         </div>
                     </div>
-                    <p class="help-text">Your site favicon (recommended size: 32×32 pixels).</p>
+                    <p class="help-text" data-i18n="settings_siteIconHelp">Your site favicon (recommended size: 32×32 pixels).</p>
                 </div>
             </div>
         </div>
@@ -134,10 +149,10 @@
         <!-- Content Settings Tab -->
         <div class="tab-content" id="content-tab">
             <div class="settings-section">
-                <h2>Posts</h2>
+                <h2 data-i18n="settings_posts">Posts</h2>
 
                 <div class="form-group">
-                    <label for="postsPerPage">Posts Per Page</label>
+                    <label for="postsPerPage" data-i18n="settings_postsPerPage">Posts Per Page</label>
                     <input
                         type="number"
                         id="postsPerPage"
@@ -146,11 +161,11 @@
                         min="1"
                         max="50"
                     />
-                    <p class="help-text">Number of posts to display per page on the blog.</p>
+                    <p class="help-text" data-i18n="settings_postsPerPageHelp">Number of posts to display per page on the blog.</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="defaultPostAuthor">Default Post Author</label>
+                    <label for="defaultPostAuthor" data-i18n="settings_defaultPostAuthor">Default Post Author</label>
                     <select id="defaultPostAuthor" name="defaultPostAuthor">
                         {{#each users}}
                         <option value="{{ username }}" {{ username="settings.defaultPostAuthor" ? `selected` : `` }}>
@@ -158,23 +173,23 @@
                         </option>
                         {{/each}}
                     </select>
-                    <p class="help-text">Default author for new posts.</p>
+                    <p class="help-text" data-i18n="settings_defaultPostAuthorHelp">Default author for new posts.</p>
                 </div>
             </div>
 
             <div class="settings-section">
-                <h2>Comments</h2>
+                <h2 data-i18n="settings_comments">Comments</h2>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="enableComments" name="enableComments" {{#if
-                        settings.enableComments}}checked{{/if}}> Enable comments
+                        settings.enableComments}}checked{{/if}}> <span data-i18n="settings_enableComments">Enable comments</span>
                     </label>
-                    <p class="help-text">Allow users to leave comments on your posts.</p>
+                    <p class="help-text" data-i18n="settings_enableCommentsHelp">Allow users to leave comments on your posts.</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="commentModeration">Comment Moderation</label>
+                    <label for="commentModeration" data-i18n="settings_commentModeration">Comment Moderation</label>
                     <select id="commentModeration" name="commentModeration">
                         <option value="none" {{ settings.commentModeration="none" ? `selected` : `` }}>
                             No moderation
@@ -186,7 +201,7 @@
                             Moderate all comments
                         </option>
                     </select>
-                    <p class="help-text">Choose how comments should be moderated.</p>
+                    <p class="help-text" data-i18n="settings_commentModerationHelp">Choose how comments should be moderated.</p>
                 </div>
             </div>
         </div>
@@ -194,18 +209,18 @@
         <!-- Advanced Settings Tab -->
         <div class="tab-content" id="advanced-tab">
             <div class="settings-section">
-                <h2>Performance</h2>
+                <h2 data-i18n="settings_performance">Performance</h2>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="enableCaching" name="enableCaching" {{#if
-                        settings.enableCaching}}checked{{/if}}> Enable page caching
+                        settings.enableCaching}}checked{{/if}}> <span data-i18n="settings_enableCaching">Enable page caching</span>
                     </label>
-                    <p class="help-text">Cache pages to improve performance.</p>
+                    <p class="help-text" data-i18n="settings_enableCachingHelp">Cache pages to improve performance.</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="cacheDuration">Cache Duration (in minutes)</label>
+                    <label for="cacheDuration" data-i18n="settings_cacheDuration">Cache Duration (in minutes)</label>
                     <input
                         type="number"
                         id="cacheDuration"
@@ -214,19 +229,19 @@
                         min="5"
                         max="1440"
                     />
-                    <p class="help-text">How long cached pages should be stored (in minutes).</p>
+                    <p class="help-text" data-i18n="settings_cacheDurationHelp">How long cached pages should be stored (in minutes).</p>
                 </div>
             </div>
 
             <div class="settings-section">
-                <h2>Custom Code</h2>
+                <h2 data-i18n="settings_customCode">Custom Code</h2>
 
                 <div class="form-group">
-                    <label for="headerCode">Header Code</label>
+                    <label for="headerCode" data-i18n="settings_headerCode">Header Code</label>
                     <textarea id="headerCode" name="headerCode" rows="5" class="code-input">
 {{ settings.headerCode }}</textarea
                     >
-                    <p class="help-text">
+                    <p class="help-text" data-i18n="settings_headerCodeHelp">
                         Custom HTML code to add to the
                         <code>head</code>
                         section of your site.
@@ -234,11 +249,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="footerCode">Footer Code</label>
+                    <label for="footerCode" data-i18n="settings_footerCode">Footer Code</label>
                     <textarea id="footerCode" name="footerCode" rows="5" class="code-input">
 {{ settings.footerCode }}</textarea
                     >
-                    <p class="help-text">
+                    <p class="help-text" data-i18n="settings_footerCodeHelp">
                         Custom HTML code to add before the closing
                         <code>body</code>
                         tag.
@@ -250,8 +265,8 @@
         <!-- Menu Settings Tab -->
         <div class="tab-content" id="menu-tab">
             <div class="settings-section">
-                <h2>Navigation Menu</h2>
-                <p>Configure the navigation menu for your site. Changes will be applied to the active theme.</p>
+                <h2 data-i18n="settings_navigationMenu">Navigation Menu</h2>
+                <p data-i18n="settings_navigationMenuDesc">Configure the navigation menu for your site. Changes will be applied to the active theme.</p>
 
                 <!-- Include the menu editor component -->
                 {{#include("components/menu-editor.html")}}
@@ -261,35 +276,35 @@
         <!-- Static Site Generation Tab -->
         <div class="tab-content" id="static-tab">
             <div class="settings-section">
-                <h2>Static Site Generator</h2>
-                <p>Generate a static version of your site that can be deployed to any web hosting service.</p>
+                <h2 data-i18n="settings_staticGenerator">Static Site Generator</h2>
+                <p data-i18n="settings_staticGeneratorDesc">Generate a static version of your site that can be deployed to any web hosting service.</p>
 
                 <div class="form-group">
-                    <label for="staticOutputDir">Output Directory</label>
+                    <label for="staticOutputDir" data-i18n="settings_outputDir">Output Directory</label>
                     <input type="text" id="staticOutputDir" name="staticOutputDir" value="_site" />
-                    <p class="help-text">The directory where the static site will be generated</p>
+                    <p class="help-text" data-i18n="settings_outputDirHelp">The directory where the static site will be generated</p>
                 </div>
 
                 <div class="form-group">
-                    <label for="staticBaseUrl">Base URL</label>
+                    <label for="staticBaseUrl" data-i18n="settings_baseUrl">Base URL</label>
                     <input type="text" id="staticBaseUrl" name="staticBaseUrl" value="/" />
-                    <p class="help-text">The base URL for the site (e.g., "/" or "/blog/")</p>
+                    <p class="help-text" data-i18n="settings_baseUrlHelp">The base URL for the site (e.g., "/" or "/blog/")</p>
                 </div>
 
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="staticCleanUrls" name="staticCleanUrls" checked />
-                        Use clean URLs
+                        <span data-i18n="settings_useCleanUrls">Use clean URLs</span>
                     </label>
-                    <p class="help-text">Use directory/index.html pattern instead of .html files</p>
+                    <p class="help-text" data-i18n="settings_useCleanUrlsHelp">Use directory/index.html pattern instead of .html files</p>
                 </div>
 
                 <div class="static-generate-btn-wrapper">
-                    <button type="button" id="generateStaticBtn" class="btn btn-primary">Generate Static Site</button>
+                    <button type="button" id="generateStaticBtn" class="btn btn-primary" data-i18n="settings_generateStatic">Generate Static Site</button>
                 </div>
 
                 <div id="staticGeneratorStatus" class="alert alert-info mt-3" style="display: none">
-                    <span id="staticStatusMessage">Generating static site...</span>
+                    <span id="staticStatusMessage" data-i18n="processing">Generating static site...</span>
                     <div class="progress mt-2">
                         <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
                     </div>
@@ -300,8 +315,8 @@
         </div>
 
         <div id="settings-form-actions" class="form-actions">
-            <button type="submit" id="save-settings" class="btn btn-primary">Save Settings</button>
-            <button type="button" id="reset-settings" class="btn btn-outline">Reset Changes</button>
+            <button type="submit" id="save-settings" class="btn btn-primary" data-i18n="settings_save">Save Settings</button>
+            <button type="button" id="reset-settings" class="btn btn-outline" data-i18n="settings_reset">Reset Changes</button>
         </div>
     </form>
 </div>
@@ -310,12 +325,12 @@
 <div id="media-selection-modal" class="modal">
     <div class="modal-content media-modal-content">
         <div class="modal-header">
-            <h2 id="media-modal-title">Select Media</h2>
+            <h2 id="media-modal-title" data-i18n="settings_selectMedia">Select Media</h2>
             <button class="close-modal">&times;</button>
         </div>
         <div class="modal-body">
             <div class="media-modal-filters">
-                <input type="text" id="modal-media-search" placeholder="Search media..." />
+                <input type="text" id="modal-media-search" data-i18n-placeholder="settings_searchMedia" placeholder="Search media..." />
                 <select id="modal-media-filter">
                     <option value="image">Images</option>
                 </select>
@@ -325,17 +340,17 @@
 
             <div id="modal-loading" class="modal-loading">
                 <div class="spinner"></div>
-                <p>Loading media...</p>
+                <p data-i18n="loading">Loading media...</p>
             </div>
 
             <div id="modal-empty" class="modal-empty hidden">
-                <p>No media found. Upload media files in the Media Library.</p>
-                <a href="/aether/media" class="btn btn-sm btn-primary">Go to Media Library</a>
+                <p data-i18n="settings_noMedia">No media found. Upload media files in the Media Library.</p>
+                <a href="/aether/media" class="btn btn-sm btn-primary" data-i18n="settings_gotoMedia">Go to Media Library</a>
             </div>
         </div>
         <div class="modal-footer">
-            <button id="cancel-media-selection" class="btn btn-outline">Cancel</button>
-            <button id="confirm-media-selection" class="btn btn-primary">Select</button>
+            <button id="cancel-media-selection" class="btn btn-outline" data-i18n="settings_cancel">Cancel</button>
+            <button id="confirm-media-selection" class="btn btn-primary" data-i18n="settings_select">Select</button>
         </div>
     </div>
 </div>
@@ -344,14 +359,27 @@
 <div class="modal" id="save-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>Settings Saved</h2>
+            <h2 data-i18n="settings_saved">Settings Saved</h2>
             <button class="close-modal">&times;</button>
         </div>
         <div class="modal-body">
-            <p>Your settings have been saved successfully.</p>
+            <p data-i18n="settings_savedMsg">Your settings have been saved successfully.</p>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-primary" id="close-modal">OK</button>
+            <button class="btn btn-primary" id="close-modal" data-i18n="ok">OK</button>
         </div>
     </div>
 </div>
+
+<script>
+    // Live language switch for the UI Language selector (persisted by the
+    // settings form; i18n.js reapplies translations immediately).
+    document.addEventListener("DOMContentLoaded", function () {
+        const langSelect = document.getElementById("uiLanguage")
+        if (langSelect && window.I18N) {
+            langSelect.addEventListener("change", function () {
+                window.I18N.setLang(this.value)
+            })
+        }
+    })
+</script>

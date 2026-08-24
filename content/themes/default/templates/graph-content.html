@@ -1,0 +1,26 @@
+<article class="single-post">
+    <header class="post-header">
+        <h1 class="post-title">知识图谱</h1>
+        <h2>共 {{ graphStats.nodes }} 个节点、{{ graphStats.edges }} 条链接</h2>
+    </header>
+
+    <div class="post-content graph-page">
+        <div class="graph-toolbar">
+            <input type="text" id="graph-search" placeholder="搜索节点标题…" autocomplete="off" />
+            <select id="graph-type-filter">
+                <option value="">全部类型</option>
+                <option value="post">文章</option>
+                <option value="page">页面</option>
+            </select>
+            <button type="button" id="graph-reset">重置视图</button>
+            <span class="graph-hint">拖拽节点 · 空白拖拽平移(边界停住) · 滚轮缩放 · 双击复位 · 点击节点打开</span>
+        </div>
+        <canvas id="knowledge-graph" width="1100" height="620"></canvas>
+        <noscript>
+            <p class="graph-noscript">需要启用 JavaScript 才能显示知识图谱。</p>
+        </noscript>
+    </div>
+
+    <script type="application/json" id="graph-data">{{ html_graphJson }}</script>
+    <script src="/content/themes/default/assets/js/knowledge-graph.js"></script>
+</article>

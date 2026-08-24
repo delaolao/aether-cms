@@ -5,17 +5,36 @@
 
 <div class="editor-container">
     <div class="editor-header">
-        <h1>{{ title }}</h1>
+        <h1>
+            {{#if isNew}}
+            {{#if contentType === "post"}}
+            <span data-i18n="editor_addNewPost">Add New Post</span>
+            {{#else}}
+            <span data-i18n="editor_addNewPage">Add New Page</span>
+            {{/if}}
+            {{#else}}
+            {{#if contentType === "post"}}
+            <span data-i18n="editor_editPost">Edit Post</span>
+            {{#else}}
+            <span data-i18n="editor_editPage">Edit Page</span>
+            {{/if}}
+            {{#if item.title}}: {{ item.title }}{{/if}}
+            {{/if}}
+        </h1>
+        <div class="editor-publish-bar">
+            <label class="publish-date-label" for="publishDate">发布时间</label>
+            <input type="datetime-local" id="publishDate" name="publishDate" class="publish-date-input" value="{{ item.publishDate }}" />
+        </div>
         <div class="editor-actions">
             {{#if isNew}}
-            <button id="save-draft" class="btn btn-outline">Save Draft</button>
-            <button id="publish" class="btn btn-primary">Publish</button>
+            <button id="save-draft" class="btn btn-outline" data-i18n="editor_saveDraft">Save Draft</button>
+            <button id="publish" class="btn btn-primary" data-i18n="publish">Publish</button>
             {{#else}}
-            <button id="update" class="btn btn-primary">Update</button>
+            <button id="update" class="btn btn-primary" data-i18n="editor_update">Update</button>
             {{#if item.status = "draft"}}
-            <button id="publish" class="btn btn-success">Publish</button>
+            <button id="publish" class="btn btn-success" data-i18n="publish">Publish</button>
             {{#else}}
-            <button id="unpublish" class="btn btn-outline">Revert to Draft</button>
+            <button id="unpublish" class="btn btn-outline" data-i18n="editor_revertDraft">Revert to Draft</button>
             {{/if}}
             <!---->
             {{/if}}
@@ -25,29 +44,31 @@
     <div class="editor-body">
         <div class="editor-main">
             <div class="form-group" id="markdown-editor-container">
-                <label for="title">Title</label>
+                <label for="title" data-i18n="editor_title">Title</label>
                 <input
                     type="text"
                     id="title"
                     name="title"
                     value="{{ item.title }}"
+                    data-i18n-placeholder="editor_enterTitle"
                     placeholder="Enter title"
                     required
                 />
 
                 <div class="form-group">
-                    <label for="subtitle">Subtitle</label>
+                    <label for="subtitle" data-i18n="editor_subtitle">Subtitle</label>
                     <input
                         type="text"
                         id="subtitle"
                         name="subtitle"
                         value="{{ item.subtitle }}"
+                        data-i18n-placeholder="editor_enterSubtitle"
                         placeholder="Enter subtitle or tagline (optional)"
                     />
                 </div>
 
                 <div class="form-group">
-                    <label for="content">Content</label>
+                    <label for="content" data-i18n="editor_content">Content</label>
 
                     <!-- Normal Mode Editor -->
                     <div id="normal-editor-wrapper">
@@ -55,15 +76,15 @@
 
                         <!-- Tabs for Editor/Preview -->
                         <div class="md-tabs">
-                            <button data-action="view" data-tab-content="editor" class="tab-button active">
+                            <button data-action="view" data-tab-content="editor" class="tab-button active" data-i18n="editor_tabEditor">
                                 Editor
                             </button>
                             <button data-action="view" data-tab-content="preview" class="tab-button">
-                                Preview
+                                <span data-i18n="editor_tabPreview">Preview</span>
                                 <span id="preview-changes-indicator" class="change-indicator hidden"></span>
                             </button>
                             <!-- Sidebar toggle button - always after preview -->
-                            <button class="editor-sidebar-toggle-btn" title="Toggle Sidebar (Ctrl+Shift+S)">
+                            <button class="editor-sidebar-toggle-btn" data-i18n-title="editor_toggleSidebar" title="Toggle Sidebar (Ctrl+Shift+S)">
                                 <svg
                                     viewBox="0 0 24 24"
                                     width="16"
@@ -79,7 +100,7 @@
                                 </svg>
                             </button>
                             <!-- Side-by-side is not available in normal mode -->
-                            <button data-action="fullscreen" class="view-toggle-btn" title="Toggle Fullscreen Mode">
+                            <button data-action="fullscreen" class="view-toggle-btn" data-i18n-title="editor_toggleFullscreen" title="Toggle Fullscreen Mode">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     width="16"
@@ -106,6 +127,7 @@
                                     id="content"
                                     name="content"
                                     class="content-editor"
+                                    data-i18n-placeholder="editor_writeContent"
                                     placeholder="Write your content here..."
                                 >
 {{ item.content }}</textarea
@@ -122,8 +144,8 @@
 
         <div class="editor-sidebar">
             <div class="editor-sidebar-header">
-                <h3>Publishing Options</h3>
-                <button class="editor-sidebar-close-btn" title="Close Sidebar">
+                <h3 data-i18n="editor_publishingOptions">Publishing Options</h3>
+                <button class="editor-sidebar-close-btn" data-i18n-title="editor_closeSidebar" title="Close Sidebar">
                     <svg
                         viewBox="0 0 24 24"
                         width="24"
@@ -141,33 +163,33 @@
             </div>
 
             <div class="sidebar-section">
-                <h3>Publishing Options</h3>
+                <h3 data-i18n="editor_publishingOptions">Publishing Options</h3>
                 <div class="form-group">
-                    <label for="status">Status</label>
+                    <label for="status" data-i18n="editor_status">Status</label>
                     <select id="status" name="status">
-                        <option value="draft" {{ item.status="draft" ? `selected` : `` }}>Draft</option>
-                        <option value="published" {{ item.status="published" ? `selected` : `` }}>Published</option>
+                        <option value="draft" {{ item.status="draft" ? `selected` : `` }} data-i18n="editor_draft">Draft</option>
+                        <option value="published" {{ item.status="published" ? `selected` : `` }} data-i18n="editor_published">Published</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="slug">Slug</label>
+                    <label for="slug" data-i18n="editor_slug">Slug</label>
                     <input type="text" id="slug" name="slug" value="{{ item.slug }}" placeholder="post-url-slug" />
-                    <p class="help-text">The URL-friendly version of the title.</p>
+                    <p class="help-text" data-i18n="editor_slugHelp">The URL-friendly version of the title.</p>
                 </div>
 
                 {{#if contentType === "page"}}
                 <div class="sidebar-section">
-                    <h3>Page Settings</h3>
+                    <h3 data-i18n="editor_pageSettings">Page Settings</h3>
                     <div class="form-group">
-                        <label for="pageType">Page Type</label>
+                        <label for="pageType" data-i18n="editor_pageType">Page Type</label>
                         <select id="pageType" name="pageType">
-                            <option value="normal" {{ item.pageType !="custom" ? `selected` : `` }}>Normal</option>
-                            <option value="custom" {{ item.pageType="custom" ? `selected` : `` }}>
+                            <option value="normal" {{ item.pageType !="custom" ? `selected` : `` }} data-i18n="editor_normal">Normal</option>
+                            <option value="custom" {{ item.pageType="custom" ? `selected` : `` }} data-i18n="editor_customTemplate">
                                 Custom Template
                             </option>
                         </select>
-                        <p class="help-text">
+                        <p class="help-text" data-i18n="editor_pageTypeHelp">
                             Normal pages use the standard page layout. Custom pages use template files from the theme's
                             "custom" directory.
                         </p>
@@ -185,12 +207,12 @@
                         :
                         ``}}
                     >
-                        <label for="parentPage">Parent Page</label>
+                        <label for="parentPage" data-i18n="editor_parentPage">Parent Page</label>
                         <select id="parentPage" name="parentPage">
-                            <option value="">None (Top Level)</option>
+                            <option value="" data-i18n="editor_noneTopLevel">None (Top Level)</option>
                             <!-- Options will be populated by JavaScript -->
                         </select>
-                        <p class="help-text">
+                        <p class="help-text" data-i18n="editor_parentPageHelp">
                             Select a parent page to create nested URLs. For example, if parent is "docs", this page will
                             be accessible at /docs/[slug].
                         </p>
@@ -200,13 +222,13 @@
             </div>
 
             <div class="sidebar-section">
-                <h3>SEO Settings</h3>
+                <h3 data-i18n="editor_seoSettings">SEO Settings</h3>
                 <div class="form-group">
-                    <label for="seoDescription">Meta Description</label>
-                    <textarea id="seoDescription" name="seoDescription" placeholder="Description for search engines...">
+                    <label for="seoDescription" data-i18n="editor_metaDescription">Meta Description</label>
+                    <textarea id="seoDescription" name="seoDescription" data-i18n-placeholder="editor_metaDescPlaceholder" placeholder="Description for search engines...">
 {{ item.seoDescription }}</textarea
                     >
-                    <p class="help-text">Recommended length: 150-160 characters. Used in search results.</p>
+                    <p class="help-text" data-i18n="editor_metaDescHelp">Recommended length: 150-160 characters. Used in search results.</p>
                     <div class="character-counter">
                         <span id="seoDescriptionCount">0</span>
                         /160
@@ -215,24 +237,24 @@
             </div>
 
             <div class="sidebar-section">
-                <h3>Media</h3>
+                <h3 data-i18n="editor_media">Media</h3>
 
                 <!-- Featured Image Section -->
                 <div class="form-group">
-                    <label>Featured Image</label>
+                    <label data-i18n="editor_featuredImage">Featured Image</label>
                     <div id="featured-image-preview" class="featured-image-preview">
                         {{#if item.featuredImage}}
                         <img src="/content/uploads{{item.featuredImage.url}}" alt="{{item.featuredImage.alt}}" />
-                        <button class="remove-featured-image">Remove</button>
+                        <button class="remove-featured-image" data-i18n="remove">Remove</button>
                         {{#else}}
-                        <button id="select-featured-image" class="btn btn-sm btn-outline">Set Featured Image</button>
+                        <button id="select-featured-image" class="btn btn-sm btn-outline" data-i18n="editor_setFeaturedImage">Set Featured Image</button>
                         {{/if}}
                     </div>
                 </div>
 
                 <!-- Add a helpful tip about the image button -->
                 <div class="media-help-tip">
-                    <p class="help-text">
+                    <p class="help-text" data-i18n="editor_mediaHelpTip">
                         Use the image button (
                         <span>🖼️</span>
                         ) in the editor toolbar to insert images into your content.
@@ -243,19 +265,19 @@
             {{#if contentType === "post"}}
             <!-- Related Posts Section -->
             <div class="sidebar-section" id="relatedPostsContainer">
-                <h3>Related Posts</h3>
+                <h3 data-i18n="editor_relatedPosts">Related Posts</h3>
                 <div class="form-group">
-                    <label>Select related posts to display with this content</label>
+                    <label data-i18n="editor_selectRelated">Select related posts to display with this content</label>
 
                     <!-- Related Posts List -->
                     <div id="relatedPostsList" class="related-posts-list">
                         <!-- Posts will be inserted here by JavaScript -->
-                        <p class="related-posts-placeholder">No related posts selected</p>
+                        <p class="related-posts-placeholder" data-i18n="editor_noRelated">No related posts selected</p>
                     </div>
 
                     <!-- Add Related Post Button -->
                     <div class="related-posts-actions">
-                        <button type="button" id="addRelatedPost" class="btn btn-sm btn-outline">
+                        <button type="button" id="addRelatedPost" class="btn btn-sm btn-outline" data-i18n="editor_addRelated">
                             Add Related Post
                         </button>
                     </div>
@@ -266,6 +288,7 @@
                             <input
                                 type="text"
                                 id="relatedPostsSearch"
+                                data-i18n-placeholder="editor_searchPosts"
                                 placeholder="Search posts..."
                                 class="dropdown-search"
                             />
@@ -275,63 +298,56 @@
                         </div>
                     </div>
 
-                    <p class="help-text">Select up to 5 related posts to suggest to readers.</p>
+                    <p class="help-text" data-i18n="editor_upTo5Related">Select up to 5 related posts to suggest to readers.</p>
                 </div>
             </div>
             {{/if}}
 
             <div class="sidebar-section">
-                <h3>Additional Settings</h3>
-
-                <!-- Date Picker Field -->
-                <div class="form-group">
-                    <label for="publishDate">Publish Date</label>
-                    <input type="datetime-local" id="publishDate" name="publishDate" value="{{ item.publishDate }}" />
-                    <p class="help-text">Schedule or backdate this content.</p>
-                </div>
+                <h3 data-i18n="editor_additionalSettings">Additional Settings</h3>
 
                 {{#if contentType === "post"}}
                 <!-- Categories Field -->
                 <div class="form-group">
-                    <label for="category">Category</label>
+                    <label for="category" data-i18n="editor_category">Category</label>
                     <div class="category-container">
                         <div class="category-input-wrapper">
-                            <input type="text" id="categoryInput" placeholder="Add a category..." />
-                            <button type="button" id="addCategory" class="btn btn-sm">Add</button>
+                            <input type="text" id="categoryInput" data-i18n-placeholder="editor_addCategory" placeholder="Add a category..." />
+                            <button type="button" id="addCategory" class="btn btn-sm" data-i18n="editor_add">Add</button>
                         </div>
                         <div id="categoriesList" class="categories-list">
                             <!-- Categories will be inserted here by JavaScript -->
                         </div>
-                        <p class="help-text">Add a primary category for organizing content.</p>
+                        <p class="help-text" data-i18n="editor_addCategoryHelp">Add a primary category for organizing content.</p>
                     </div>
                 </div>
 
                 <!-- Tags Field -->
                 <div class="form-group">
-                    <label for="tags">Tags</label>
+                    <label for="tags" data-i18n="editor_tags">Tags</label>
                     <div class="tags-container">
                         <div class="tags-input-wrapper">
-                            <input type="text" id="tagInput" placeholder="Add a tag..." />
-                            <button type="button" id="addTag" class="btn btn-sm">Add</button>
+                            <input type="text" id="tagInput" data-i18n-placeholder="editor_addTag" placeholder="Add a tag..." />
+                            <button type="button" id="addTag" class="btn btn-sm" data-i18n="editor_add">Add</button>
                         </div>
                         <div id="tagsList" class="tags-list">
                             <!-- Tags will be inserted here by JavaScript -->
                         </div>
-                        <p class="help-text">Add multiple tags to help users find related content.</p>
+                        <p class="help-text" data-i18n="editor_addTagHelp">Add multiple tags to help users find related content.</p>
                     </div>
                 </div>
                 {{/if}}
 
                 <!-- Excerpt Field -->
                 <div class="form-group">
-                    <label for="excerpt">Excerpt</label>
-                    <textarea id="excerpt" name="excerpt" placeholder="Brief summary...">{{ item.excerpt }}</textarea>
-                    <p class="help-text">A short summary of the content.</p>
+                    <label for="excerpt" data-i18n="editor_excerpt">Excerpt</label>
+                    <textarea id="excerpt" name="excerpt" data-i18n-placeholder="editor_excerptPlaceholder" placeholder="Brief summary...">{{ item.excerpt }}</textarea>
+                    <p class="help-text" data-i18n="editor_excerptHelp">A short summary of the content.</p>
                 </div>
 
                 <!-- Author Field -->
                 <div class="form-group">
-                    <label for="author">Author</label>
+                    <label for="author" data-i18n="editor_author">Author</label>
                     <input type="text" id="author" name="author" value="{{ item.author || user.username }}" />
                 </div>
             </div>
@@ -343,8 +359,8 @@
 <div id="fullscreen-editor-container" class="md-fullscreen-mode" style="display: none">
     <!-- Fullscreen Header -->
     <div class="md-fullscreen-header">
-        <h3>Distraction-Free Editor</h3>
-        <button class="md-exit-fullscreen" title="Exit Fullscreen">
+        <h3 data-i18n="editor_distractionFree">Distraction-Free Editor</h3>
+        <button class="md-exit-fullscreen" data-i18n-title="editor_exitFullscreen" title="Exit Fullscreen">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"
@@ -366,13 +382,13 @@
 
     <!-- Fullscreen Tabs (side-by-side is visible) -->
     <div class="md-tabs">
-        <button data-action="view" data-tab-content="editor" class="tab-button active">Editor</button>
+        <button data-action="view" data-tab-content="editor" class="tab-button active" data-i18n="editor_tabEditor">Editor</button>
         <button data-action="view" data-tab-content="preview" class="tab-button">
-            Preview
+            <span data-i18n="editor_tabPreview">Preview</span>
             <span id="fs-preview-changes-indicator" class="change-indicator hidden"></span>
         </button>
         <!-- Sidebar toggle button - always after preview -->
-        <button class="editor-sidebar-toggle-btn" title="Toggle Sidebar (Ctrl+Shift+S)">
+        <button class="editor-sidebar-toggle-btn" data-i18n-title="editor_toggleSidebar" title="Toggle Sidebar (Ctrl+Shift+S)">
             <svg
                 viewBox="0 0 24 24"
                 width="16"
@@ -388,7 +404,7 @@
             </svg>
         </button>
         <!-- Full-screen is not available in fullscreen mode -->
-        <button data-action="side-by-side" class="view-toggle-btn" title="Toggle Side-by-Side View">
+        <button data-action="side-by-side" class="view-toggle-btn" data-i18n-title="editor_toggleSideBySide" title="Toggle Side-by-Side View">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="16"

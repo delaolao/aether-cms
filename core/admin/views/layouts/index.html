@@ -41,6 +41,10 @@
                 <!-- Users Content -->
                 {{#include("contents/users.html")}}
                 <!---->
+                {{#elseif dashboardGraph}}
+                <!-- Knowledge Graph Content -->
+                {{#include("contents/graph.html")}}
+                <!---->
                 {{/if}}
             </main>
         </div>
@@ -65,11 +69,26 @@
         {{/if}}
 
         <script src="/core/admin/static/js/admin.js"></script>
+        <script src="/core/admin/static/js/i18n.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                if (window.I18N) window.I18N.init()
+                else {
+                    // i18n.js loaded as a classic script — fall back to lazy init
+                    var s = document.createElement("script")
+                    s.src = "/core/admin/static/js/i18n.js"
+                    s.onload = function () { if (window.I18N) window.I18N.init() }
+                    document.body.appendChild(s)
+                }
+            })
+        </script>
         {{#if dashboardTable}}
         <script src="/core/admin/static/vendors/tabulator/tabulator.min.js"></script>
         <script type="module" src="/core/admin/static/js/table/table.js"></script>
         {{#elseif dashboardEditor}}
+        <link rel="stylesheet" href="/core/admin/static/vendors/katex/katex.min.css" />
         <script src="/core/admin/static/vendors/marked/marked.umd.min.js"></script>
+        <script src="/core/admin/static/vendors/katex/katex.min.js"></script>
         <script type="module" src="/core/admin/static/js/editor/editor.js"></script>
         <script type="module" src="/core/admin/static/js/editor/modules/offcanvas-sidebar.js"></script>
         {{#elseif dashboardMedia}}
@@ -83,6 +102,8 @@
         <script type="module" src="/core/admin/static/js/settings/settings.js"></script>
         {{#elseif dashboardUsers}}
         <script type="module" src="/core/admin/static/js/users/users.js"></script>
+        {{#elseif dashboardGraph}}
+        <script src="/content/themes/default/assets/js/knowledge-graph.js"></script>
         {{/if}}
     </body>
 </html>

@@ -4,6 +4,9 @@
  */
 import { formatDate } from "./utils.js"
 
+// i18n helper for JS-generated strings.
+const t = (key, params) => (window.I18N ? window.I18N.t(key, params) : key)
+
 class UIManager {
     constructor() {
         // DOM Elements
@@ -74,12 +77,12 @@ class UIManager {
         row.innerHTML = `
             <td>${user.username}</td>
             <td>${user.email}</td>
-            <td><span class="role-badge role-${user.role}">${user.role}</span></td>
+            <td><span class="role-badge role-${user.role}">${t(user.role === "admin" ? "users_administrator" : "users_editor")}</span></td>
             <td>${formatDate(user.createdAt)}</td>
             <td>
                 <div class="user-actions">
-                    <button class="action-button edit-button" data-id="${user.id}" title="Edit">✏️</button>
-                    <button class="action-button delete-button" data-id="${user.id}" title="Delete">🗑️</button>
+                    <button class="action-button edit-button" data-id="${user.id}" title="${t("menu_edit")}">✏️</button>
+                    <button class="action-button delete-button" data-id="${user.id}" title="${t("delete")}">🗑️</button>
                 </div>
             </td>
         `
@@ -125,11 +128,11 @@ class UIManager {
             usernameField.disabled = true
 
             // Update password field help text
-            this.passwordHelp.textContent = "Leave blank to keep current password."
+            this.passwordHelp.textContent = t("users_passwordHelp")
             this.passwordField.required = false
 
             // Update panel title
-            this.panelTitle.textContent = "Edit User"
+            this.panelTitle.textContent = t("users_editUser")
         } else {
             // Create new user
             userIdField.value = ""
@@ -138,11 +141,11 @@ class UIManager {
             usernameField.disabled = false
 
             // Update password field help text
-            this.passwordHelp.textContent = "Password for the new user."
+            this.passwordHelp.textContent = t("users_passwordNew")
             this.passwordField.required = true
 
             // Update panel title
-            this.panelTitle.textContent = "Add New User"
+            this.panelTitle.textContent = t("users_addNew")
         }
 
         // Show the form panel

@@ -3,7 +3,7 @@
         <h1 class="post-title">{{ metadata.title }}</h1>
         <h2>{{ metadata.subtitle }}</h2>
         <div class="post-meta">
-            <span class="post-date">{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}</span>
+            <span class="post-date">{{#if metadata.publishDate}}{{ metadata.publishDate | dateFormat('YYYY-MM-DD') }}{{#else}}{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}{{/if}}</span>
             <span class="post-author">By {{ metadata.author }}</span>
             {{#if metadata.category}}
             <span class="post-category">
@@ -41,4 +41,6 @@
     </footer>
 
     {{#if metadata.relatedPostsData}} {{#include("partials/related-posts.html")}} {{/if}}
+
+    {{#include("partials/wiki-links.html")}}
 </article>

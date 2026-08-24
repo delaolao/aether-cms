@@ -1,6 +1,9 @@
 /**
  * EditorUI - Manages the editor user interface
  */
+// i18n helper for JS-generated strings.
+const t = (key, params) => (window.I18N ? window.I18N.t(key, params) : key)
+
 export class EditorUI {
     constructor({
         titleInput,
@@ -233,10 +236,10 @@ export class EditorUI {
             // First clear the current action buttons
             const actionButtonsHTML =
                 status === "published"
-                    ? `<button id="update" class="btn btn-primary">Update</button>
-                   <button id="unpublish" class="btn btn-outline">Revert to Draft</button>`
-                    : `<button id="update" class="btn btn-primary">Update</button>
-                   <button id="publish" class="btn btn-success">Publish</button>`
+                    ? `<button id="update" class="btn btn-primary">${t("editor_update")}</button>
+                   <button id="unpublish" class="btn btn-outline">${t("editor_revertDraft")}</button>`
+                    : `<button id="update" class="btn btn-primary">${t("editor_update")}</button>
+                   <button id="publish" class="btn btn-success">${t("publish")}</button>`
 
             this.editorActions.innerHTML = actionButtonsHTML
 

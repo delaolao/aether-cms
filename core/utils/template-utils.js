@@ -252,9 +252,14 @@ export async function applyTemplateMetadata({
 
             // Add the content from the custom page if it exists
             if (contentPage.content) {
+                const { renderMarkdown, getWikilinkIndexCached } = await import(
+                    "../lib/markdown/markdown-renderer.js"
+                )
                 // Check if marked is available (for static site generator)
                 if (typeof marked !== "undefined") {
-                    enhancedData.content = marked.parse(contentPage.content)
+                    enhancedData.content = renderMarkdown(contentPage.content, {
+                        wikilinks: await getWikilinkIndexCached(contentManager),
+                    })
                 } else {
                     enhancedData.content = contentPage.content
                 }

@@ -12,6 +12,10 @@
         <!--#elseif the file type is a post #include "post-content.html" from the "templates" folder-->
         {{#include("templates/post-content.html")}}
         <!---->
+        {{#elseif graphRoute}}
+        <!--#elseif this is the knowledge graph route #include "graph-content.html" from the "templates" folder-->
+        {{#include("templates/graph-content.html")}}
+        <!---->
         {{#elseif taxonomyRoute}}
         <!--#elseif the route is a taxonomy type #include "collection.html" from the "templates" folder-->
         {{#include("templates/collection.html")}}

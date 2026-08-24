@@ -18,6 +18,7 @@ export function setupAdminRoutes(app, systems) {
         res.render("/core/admin/views/layouts/login.html", {
             title: "Login",
             error: req.queryParams?.get("error"),
+            adminLang: await settingsService.getSetting("uiLanguage", "zh"),
             year: new Date().getFullYear(),
         })
     })
@@ -194,6 +195,7 @@ export function setupAdminRoutes(app, systems) {
             status: post.frontmatter.status || "draft",
             createdAt: post.frontmatter.createdAt,
             updatedAt: post.frontmatter.updatedAt,
+            publishDate: post.frontmatter.publishDate || null,
             excerpt: post.frontmatter.excerpt || "",
             // Enhanced fields for pages
             pageType: post.frontmatter.pageType || null,
@@ -321,6 +323,26 @@ export function setupAdminRoutes(app, systems) {
         } catch (error) {
             console.error("Users page error:", error)
             res.status(500).html("<h1>Error</h1><p>Could not load users management</p>")
+        }
+    })
+
+    // Knowledge graph page (rendered inside the admin frame)
+    app.get("/aether/graph", authenticate, async (req, res) => {
+        try {
+            const { getGraphPayload } = await import("../lib/markdown/wiki-relations.js")
+            const payload = await getGraphPayload(contentManager)
+            const graphJson = JSON.stringify(payload).replace(/</g, "\\u003c")
+
+            res.render("/core/admin/views/layouts/index.html", {
+                title: "Knowledge Graph",
+                user: req.user,
+                dashboardGraph: true,
+                html_graphJson: graphJson,
+                graphStats: payload.stats,
+            })
+        } catch (error) {
+            console.error("Knowledge graph page error:", error)
+            res.status(500).html("<h1>Error</h1><p>Could not load knowledge graph</p>")
         }
     })
 }

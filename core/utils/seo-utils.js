@@ -294,8 +294,8 @@ export async function generateRssXml({ posts, siteSettings, baseUrl, contentMana
         return `
     <item>
         <title>${title}</title>
-        <link>${generateUrl("/post/" + slug)}</link>
-        <guid isPermaLink="true">${generateUrl("/post/" + slug)}</guid>
+        <link>${generateUrl("/notes/" + slug)}</link>
+        <guid isPermaLink="true">${generateUrl("/notes/" + slug)}</guid>
         <pubDate>${pubDate}</pubDate>
         <dc:creator>${author || "Admin"}</dc:creator>
         <description><![CDATA[${encodedDescription}]]></description>
@@ -380,7 +380,7 @@ export async function generateSitemapXml({ posts, pages, siteSettings, baseUrl, 
         for (const post of posts) {
             if (post.frontmatter && post.frontmatter.slug) {
                 urls.push({
-                    loc: `${baseUrl}/post/${post.frontmatter.slug}`,
+                    loc: `${baseUrl}/notes/${post.frontmatter.slug}`,
                     lastmod: post.frontmatter.updatedAt || post.frontmatter.createdAt,
                     priority: "0.8",
                     changefreq: "weekly",
@@ -424,7 +424,7 @@ export async function generateSitemapXml({ posts, pages, siteSettings, baseUrl, 
             const pageUrl =
                 page.frontmatter.pageType === "custom"
                     ? `${baseUrl}/${fullPath}`
-                    : `${baseUrl}/page/${page.frontmatter.slug}`
+                    : `${baseUrl}/notes/${page.frontmatter.slug}`
 
             urls.push({
                 loc: pageUrl,
@@ -442,7 +442,7 @@ export async function generateSitemapXml({ posts, pages, siteSettings, baseUrl, 
         for (const page of regularPages) {
             if (page.frontmatter && page.frontmatter.slug) {
                 urls.push({
-                    loc: `${baseUrl}/page/${page.frontmatter.slug}`,
+                    loc: `${baseUrl}/notes/${page.frontmatter.slug}`,
                     lastmod: new Date(page.frontmatter.updatedAt || page.frontmatter.createdAt).toISOString(),
                     priority: "0.7",
                     changefreq: "monthly",
@@ -558,7 +558,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
             if (post.frontmatter && post.frontmatter.slug) {
                 blogSection.items.push({
                     title: post.frontmatter.title,
-                    url: `${baseUrl}/post/${post.frontmatter.slug}`,
+                    url: `${baseUrl}/notes/${post.frontmatter.slug}`,
                     date: new Date(post.frontmatter.updatedAt || post.frontmatter.createdAt).toLocaleDateString(),
                 })
             }
@@ -602,7 +602,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
             const pageUrl =
                 page.frontmatter.pageType === "custom"
                     ? `${baseUrl}/${fullPath}`
-                    : `${baseUrl}/page/${page.frontmatter.slug}`
+                    : `${baseUrl}/notes/${page.frontmatter.slug}`
 
             pagesSection.items.push({
                 title: page.frontmatter.title,
@@ -620,7 +620,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
             if (page.frontmatter && page.frontmatter.slug) {
                 pagesSection.items.push({
                     title: page.frontmatter.title,
-                    url: `${baseUrl}/page/${page.frontmatter.slug}`,
+                    url: `${baseUrl}/notes/${page.frontmatter.slug}`,
                     date: new Date(page.frontmatter.updatedAt || page.frontmatter.createdAt).toLocaleDateString(),
                 })
             }

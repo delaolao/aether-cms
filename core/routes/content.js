@@ -1,4 +1,5 @@
-import { marked } from "marked"
+import { renderMarkdown, getWikilinkIndexCached } from "../lib/markdown/markdown-renderer.js"
+import { getBacklinks, getWikiRelated } from "../lib/markdown/wiki-relations.js"
 import { prepareTemplateData, processTemplateData, handle404 } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
 
@@ -23,10 +24,22 @@ export function setupContentRoutes(app, systems) {
             // Get site settings
             const siteSettings = await contentManager.getSiteSettings()
 
+            // Resolve [[wikilinks]] to real content URLs
+            const wikilinks = await getWikilinkIndexCached(contentManager)
+
+            // Wiki relationships: backlinks + related notes from [[wikilinks]]
+            const [backlinks, wikiRelated] = await Promise.all([
+                getBacklinks(contentManager, content.frontmatter.id),
+                getWikiRelated(contentManager, content.frontmatter.id, content.relatedPostsData),
+            ])
+
             // Create template data for the content item
             let templateData = await prepareTemplateData(req, themeManager, siteSettings, {
-                content: marked.parse(content.content),
+                content: renderMarkdown(content.content, { wikilinks }),
                 metadata: content.frontmatter,
+                backlinks,
+                wikiRelated,
+                hasWikiLinks: backlinks.length > 0 || wikiRelated.length > 0,
                 fileType: "post",
                 contentRoute: true,
                 contentId: content.frontmatter.id,
@@ -79,10 +92,22 @@ export function setupContentRoutes(app, systems) {
             // Get site settings
             const siteSettings = await contentManager.getSiteSettings()
 
+            // Resolve [[wikilinks]] to real content URLs
+            const wikilinks = await getWikilinkIndexCached(contentManager)
+
+            // Wiki relationships: backlinks + related notes from [[wikilinks]]
+            const [backlinks, wikiRelated] = await Promise.all([
+                getBacklinks(contentManager, content.frontmatter.id),
+                getWikiRelated(contentManager, content.frontmatter.id, content.relatedPostsData),
+            ])
+
             // Create template data for the content item
             let templateData = await prepareTemplateData(req, themeManager, siteSettings, {
-                content: marked.parse(content.content),
+                content: renderMarkdown(content.content, { wikilinks }),
                 metadata: content.frontmatter,
+                backlinks,
+                wikiRelated,
+                hasWikiLinks: backlinks.length > 0 || wikiRelated.length > 0,
                 fileType: "page",
                 contentRoute: true,
                 contentId: content.frontmatter.id,

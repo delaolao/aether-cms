@@ -5,7 +5,7 @@ import { generatePaginationUrls, buildSiblingCustomPagesNavigation } from "./pag
 import { prepareTemplateData, processTemplateData } from "./route-utils.js"
 import { resolveTemplatePath, checkCustomTemplate, applyTemplateMetadata } from "./template-utils.js"
 import { generateRssXml, generateSitemapHtml, generateSitemapXml, generateRobotsTxt } from "./seo-utils.js"
-import { marked } from "marked"
+import { renderMarkdown, getWikilinkIndexCached } from "../lib/markdown/markdown-renderer.js"
 
 /**
  * Generates a static site from the dynamic CMS content
@@ -25,6 +25,18 @@ export class StaticSiteGenerator {
             cleanUrls: true, // Use directory/index.html pattern instead of .html files
             ...options,
         }
+    }
+
+    /**
+     * Render markdown with Aether's Obsidian-style renderer ([[wikilinks]],
+     * math, callouts, video embeds, hashtags, ...).
+     * @param {string} content - Raw markdown content
+     * @returns {Promise<string>} HTML
+     */
+    async renderContent(content) {
+        const contentManager = this.systems?.contentManager
+        const wikilinks = contentManager ? await getWikilinkIndexCached(contentManager) : new Map()
+        return renderMarkdown(content, { wikilinks })
     }
 
     /**
@@ -68,6 +80,9 @@ export class StaticSiteGenerator {
         // Generate custom pages
         await this.generateCustomPages()
 
+        // Generate the knowledge graph page (/notes/graph)
+        await this.generateGraphPage()
+
         // Generate SEO files (RSS feed and sitemap)
         await this.generateSeoFiles()
 
@@ -82,6 +97,49 @@ export class StaticSiteGenerator {
 
         console.timeEnd("Static site generation completed in")
         console.log(`✅ Static site generated successfully at ${this.options.outputDir}\n`)
+    }
+
+    /**
+     * Generate the /notes/graph knowledge graph page (static export).
+     */
+    async generateGraphPage() {
+        console.log("Generating knowledge graph page...")
+        const { contentManager, themeManager, hookSystem, settingsService } = this.systems
+        const siteSettings = await contentManager.getSiteSettings()
+        const { getGraphPayload } = await import("../lib/markdown/wiki-relations.js")
+        const payload = await getGraphPayload(contentManager)
+        const graphJson = JSON.stringify(payload).replace(/</g, "\\u003c")
+
+        const mockReq = {
+            isEditable: false,
+            currentUser: null,
+            queryParams: new Map(),
+        }
+
+        const templateData = await prepareTemplateData(mockReq, themeManager, siteSettings, {
+            html_graphJson: graphJson,
+            graphStats: payload.stats,
+            notesRoute: true,
+            metadata: { title: "Knowledge Graph" },
+            year: new Date().getFullYear(),
+            isGenerateStatic: true,
+        })
+
+        const processedData = processTemplateData(hookSystem, templateData, "notes-graph.html")
+
+        const templatePath = await resolveTemplatePath({
+            themeManager,
+            contentType: "custom",
+            slug: "notes-graph",
+            isCustomPage: true,
+        })
+
+        const outputPath = join(
+            this.options.outputDir,
+            this.options.cleanUrls ? "notes/graph/index.html" : "notes/graph.html"
+        )
+        await this.ensureDir(dirname(outputPath))
+        await this.app.renderToFile(templatePath, processedData, outputPath)
     }
 
     /**
@@ -137,7 +195,7 @@ export class StaticSiteGenerator {
             if (homepageContent && homepageContent.frontmatter) {
                 // Add the homepage content's metadata and content
                 templateData.metadata = homepageContent.frontmatter
-                templateData.content = marked.parse(homepageContent.content)
+                templateData.content = await this.renderContent(homepageContent.content)
             }
         }
 
@@ -240,11 +298,18 @@ export class StaticSiteGenerator {
                 continue
             }
 
+            // Wiki relationships (backlinks + related notes) for the static page
+            const { getBacklinks, getWikiRelated } = await import("../lib/markdown/wiki-relations.js")
+            const [backlinks, wikiRelated] = await Promise.all([
+                getBacklinks(contentManager, content.frontmatter.id),
+                getWikiRelated(contentManager, content.frontmatter.id, content.relatedPostsData),
+            ])
+
             // Determine output path
             const slug = post.frontmatter.slug
             const outputPath = join(
                 this.options.outputDir,
-                this.options.cleanUrls ? `post/${slug}/index.html` : `post/${slug}.html`
+                this.options.cleanUrls ? `notes/${slug}/index.html` : `notes/${slug}.html`
             )
 
             // Ensure output directory exists
@@ -255,8 +320,11 @@ export class StaticSiteGenerator {
 
             // Create template data
             const templateData = await prepareTemplateData(mockReq, themeManager, siteSettings, {
-                content: marked.parse(content.content),
+                content: await this.renderContent(content.content),
                 metadata: content.frontmatter,
+                backlinks,
+                wikiRelated,
+                hasWikiLinks: backlinks.length > 0 || wikiRelated.length > 0,
                 fileType: "post",
                 contentRoute: true,
                 contentId: content.frontmatter.id,
@@ -308,11 +376,18 @@ export class StaticSiteGenerator {
                 continue
             }
 
+            // Wiki relationships (backlinks + related notes) for the static page
+            const { getBacklinks, getWikiRelated } = await import("../lib/markdown/wiki-relations.js")
+            const [backlinks, wikiRelated] = await Promise.all([
+                getBacklinks(contentManager, content.frontmatter.id),
+                getWikiRelated(contentManager, content.frontmatter.id, content.relatedPostsData),
+            ])
+
             // Determine output path
             const slug = page.frontmatter.slug
             const outputPath = join(
                 this.options.outputDir,
-                this.options.cleanUrls ? `page/${slug}/index.html` : `page/${slug}.html`
+                this.options.cleanUrls ? `notes/${slug}/index.html` : `notes/${slug}.html`
             )
 
             // Ensure output directory exists
@@ -323,8 +398,11 @@ export class StaticSiteGenerator {
 
             // Create template data
             const templateData = await prepareTemplateData(mockReq, themeManager, siteSettings, {
-                content: marked.parse(content.content),
+                content: await this.renderContent(content.content),
                 metadata: content.frontmatter,
+                backlinks,
+                wikiRelated,
+                hasWikiLinks: backlinks.length > 0 || wikiRelated.length > 0,
                 fileType: "page",
                 contentRoute: true,
                 contentId: content.frontmatter.id,
@@ -702,7 +780,7 @@ export class StaticSiteGenerator {
             let templateData = {
                 customPath: urlPath,
                 metadata: customPage.frontmatter,
-                content: marked.parse(customPage.content),
+                content: await this.renderContent(customPage.content),
                 fileType: "page",
                 contentRoute: true,
                 contentId: customPage.frontmatter.id,

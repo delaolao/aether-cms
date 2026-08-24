@@ -156,6 +156,7 @@ export class ContentService {
      * @param {string} [status] - Optional status override (published/draft)
      */
     async saveContent(status) {
+        try {
         // Get current content data from UI
         const contentData = this.editorUI.getCurrentContentData()
 
@@ -363,6 +364,10 @@ export class ContentService {
         } catch (error) {
             console.error("Save error:", error)
             alert("Failed to save content. Please try again.")
+        }
+        } catch (error) {
+            console.error("Save content error:", error)
+            window.alert("保存失败：" + (error && error.message ? error.message : "未知错误"))
         }
     }
 

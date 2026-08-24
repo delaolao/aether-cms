@@ -9,6 +9,7 @@ import { EditorState } from "./modules/editor-state.js"
 import { EditorUI } from "./modules/editor-ui.js"
 import { EditorCommands } from "./modules/editor-commands.js"
 import { FullscreenManager } from "./modules/fullscreen-manager.js"
+import { WikiAutocomplete } from "./modules/wiki-autocomplete.js"
 
 export class MarkdownEditor {
     /**
@@ -66,6 +67,12 @@ export class MarkdownEditor {
 
         // Initialize the editor
         this.init()
+
+        // Obsidian-style [[wikilink]] autocomplete
+        this.wikiAutocomplete = new WikiAutocomplete({
+            textarea,
+            container,
+        })
     }
 
     /**

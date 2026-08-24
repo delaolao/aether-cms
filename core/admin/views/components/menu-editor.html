@@ -1,10 +1,11 @@
 <!-- Theme Menu Editor -->
 <div class="theme-menu-editor">
     <div class="menu-editor-header">
-        <h2>Global Menu Editor</h2>
-        <p class="help-text">
+        <h2 data-i18n="menu_globalEditor">Global Menu Editor</h2>
+        <p class="help-text" data-i18n="menu_shared">
             This menu is shared across all themes.
-            <br />
+        </p>
+        <p class="help-text" data-i18n="menu_dragHint">
             Drag and drop menu items to reorder. Use the indent/outdent buttons to create hierarchies. Click to edit
             properties.
         </p>
@@ -13,25 +14,25 @@
     <div class="menu-editor-toolbar">
         <button type="button" id="add-menu-item" class="btn btn-sm btn-primary">
             <span class="add-icon">+</span>
-            Add Menu Item
+            <span data-i18n="menu_addItem">Add Menu Item</span>
         </button>
         <button type="button" id="save-menu" class="btn btn-sm btn-success">
             <span class="save-icon">💾</span>
-            Save Menu
+            <span data-i18n="menu_save">Save Menu</span>
         </button>
     </div>
 
     <div class="menu-items-container">
         <ul id="menu-items-list" class="menu-items-list">
             <!-- Menu items will be rendered here -->
-            <li class="menu-item-placeholder">No menu items found. Add one using the button above.</li>
+            <li class="menu-item-placeholder" data-i18n="menu_noItems">No menu items found. Add one using the button above.</li>
         </ul>
     </div>
 
     <!-- Menu Item Edit Form (initially hidden) -->
     <div id="menu-item-form-panel" class="menu-item-form-panel">
         <div class="panel-header">
-            <h3 id="menu-form-title">Edit Menu Item</h3>
+            <h3 id="menu-form-title" data-i18n="menu_editItem">Edit Menu Item</h3>
             <button type="button" id="close-menu-form" class="close-panel" aria-label="Close"></button>
         </div>
         <div class="panel-body">
@@ -40,43 +41,43 @@
                 <input type="hidden" id="menu-item-parent" value="" />
 
                 <div class="form-group">
-                    <label for="menu-item-title">Title</label>
+                    <label for="menu-item-title" data-i18n="menu_menuTitle">Title</label>
                     <input type="text" id="menu-item-title" />
                 </div>
 
                 <div class="form-group">
-                    <label for="menu-item-url">URL</label>
+                    <label for="menu-item-url" data-i18n="menu_url">URL</label>
                     <input type="text" id="menu-item-url" />
-                    <p class="help-text">
+                    <p class="help-text" data-i18n="menu_urlHelp">
                         Use relative URLs like "/page/about" or absolute URLs like "https://example.com"
                     </p>
                 </div>
 
                 <div class="form-group">
-                    <label for="menu-item-parent-select">Parent Item</label>
+                    <label for="menu-item-parent-select" data-i18n="menu_parentItem">Parent Item</label>
                     <select id="menu-item-parent-select" name="parent-select">
-                        <option value="">None (Top Level)</option>
+                        <option value="" data-i18n="menu_noneTopLevel">None (Top Level)</option>
                         <!-- Parent options will be populated dynamically -->
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="menu-item-target">Open In</label>
+                    <label for="menu-item-target" data-i18n="menu_openIn">Open In</label>
                     <select id="menu-item-target" name="target">
-                        <option value="_self">Same Window</option>
-                        <option value="_blank">New Window</option>
+                        <option value="_self" data-i18n="menu_sameWindow">Same Window</option>
+                        <option value="_blank" data-i18n="menu_newWindow">New Window</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="menu-item-class">CSS Class (optional)</label>
+                    <label for="menu-item-class" data-i18n="menu_cssClass">CSS Class (optional)</label>
                     <input type="text" id="menu-item-class" name="class" />
                 </div>
 
                 <div class="form-actions">
-                    <button type="button" id="delete-menu-item" class="btn btn-danger">Delete</button>
-                    <button type="button" id="cancel-menu-form" class="btn btn-outline">Cancel</button>
-                    <button type="button" id="save-menu-item" class="btn btn-primary">Save</button>
+                    <button type="button" id="delete-menu-item" class="btn btn-danger" data-i18n="menu_delete">Delete</button>
+                    <button type="button" id="cancel-menu-form" class="btn btn-outline" data-i18n="cancel">Cancel</button>
+                    <button type="button" id="save-menu-item" class="btn btn-primary" data-i18n="menu_saveItem">Save</button>
                 </div>
             </div>
         </div>
@@ -90,16 +91,16 @@
     <li class="menu-item" data-id="" data-parent="">
         <div class="menu-item-handle">≡</div>
         <div class="menu-item-indent-controls">
-            <button type="button" class="menu-item-indent" title="Indent (make sub-item)">→</button>
-            <button type="button" class="menu-item-outdent" title="Outdent (move up level)">←</button>
+            <button type="button" class="menu-item-indent" data-i18n-title="menu_indent" title="Indent (make sub-item)">→</button>
+            <button type="button" class="menu-item-outdent" data-i18n-title="menu_outdent" title="Outdent (move up level)">←</button>
         </div>
         <div class="menu-item-content">
             <span class="menu-item-title"></span>
             <span class="menu-item-url"></span>
         </div>
         <div class="menu-item-actions">
-            <button type="button" class="menu-item-edit" title="Edit">✏️</button>
-            <button type="button" class="menu-item-delete" title="Delete">🗑️</button>
+            <button type="button" class="menu-item-edit" data-i18n-title="menu_edit" title="Edit">✏️</button>
+            <button type="button" class="menu-item-delete" data-i18n-title="menu_delete" title="Delete">🗑️</button>
         </div>
     </li>
 </template>
@@ -113,19 +114,19 @@
 <div id="delete-menu-item-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>Confirm Deletion</h2>
+            <h2 data-i18n="menu_confirmDelete">Confirm Deletion</h2>
             <button class="close-modal">&times;</button>
         </div>
         <div class="modal-body">
-            <p>Are you sure you want to delete this menu item? This action cannot be undone.</p>
+            <p data-i18n="menu_confirmDeleteBody">Are you sure you want to delete this menu item? This action cannot be undone.</p>
             <div class="delete-warning" hidden>
-                <strong>Warning:</strong>
-                This item has sub-items that will also be deleted.
+                <strong data-i18n="users_warning">Warning:</strong>
+                <span data-i18n="menu_subDeleteWarning">This item has sub-items that will also be deleted.</span>
             </div>
         </div>
         <div class="modal-footer">
-            <button type="button" id="cancel-delete-menu-item" class="btn btn-outline">Cancel</button>
-            <button type="button" id="confirm-delete-menu-item" class="btn btn-danger">Delete</button>
+            <button type="button" id="cancel-delete-menu-item" class="btn btn-outline" data-i18n="cancel">Cancel</button>
+            <button type="button" id="confirm-delete-menu-item" class="btn btn-danger" data-i18n="delete">Delete</button>
         </div>
     </div>
 </div>

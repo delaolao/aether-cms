@@ -1,9 +1,12 @@
 /**
  * Tabulator configuration and initialization
  */
-import { statusFormatter, dateFormatter, actionButtons, pageTypeFormatter } from "./utils.js"
+import { statusFormatter, dateFormatter, actionButtons, pageTypeFormatter, publishDateFormatter } from "./utils.js"
 
 export function initializeTable(contentType, modalManager) {
+    // i18n helper for JS-generated table strings.
+    const t = (key, params) => (window.I18N ? window.I18N.t(key, params) : key)
+
     // Base columns that are common to both posts and pages
     const baseColumns = [
         {
@@ -14,11 +17,11 @@ export function initializeTable(contentType, modalManager) {
             width: 30,
         },
         {
-            title: "Title",
+            title: t("table_title"),
             field: "title",
             sorter: "string",
             headerFilter: "input",
-            headerFilterPlaceholder: "Search titles...",
+            headerFilterPlaceholder: t("table_searchTitles"),
             widthGrow: 3,
             formatter: function (cell) {
                 return `<a href="/aether/${contentType}/edit/${cell.getRow().getData().id}">${cell.getValue()}</a>`
@@ -27,36 +30,36 @@ export function initializeTable(contentType, modalManager) {
             minWidth: 200,
         },
         {
-            title: "Author",
+            title: t("table_author"),
             field: "author",
             sorter: "string",
             headerFilter: "input",
-            headerFilterPlaceholder: "Filter author...",
+            headerFilterPlaceholder: t("table_filterAuthor"),
             responsive: 4,
             minWidth: 150,
         },
         {
-            title: "Status",
+            title: t("table_status"),
             field: "status",
             sorter: "string",
             formatter: statusFormatter,
             headerFilter: "list",
             headerFilterParams: {
-                values: { "": "All", published: "Published", draft: "Draft" },
+                values: { "": t("table_all"), published: t("table_published"), draft: t("table_draft") },
             },
-            headerFilterPlaceholder: "Filter status...",
+            headerFilterPlaceholder: t("table_filterStatus"),
             responsive: 3,
             minWidth: 100,
         },
         {
-            title: "Date",
+            title: t("table_date"),
             field: "updatedAt",
-            formatter: dateFormatter,
+            formatter: publishDateFormatter,
             responsive: 5,
             minWidth: 100,
         },
         {
-            title: "Actions",
+            title: t("table_actions"),
             formatter: (cell) => actionButtons(cell, contentType),
             headerSort: false,
             responsive: 1,
@@ -68,15 +71,15 @@ export function initializeTable(contentType, modalManager) {
     if (contentType === "pages") {
         // Insert page type column before the Actions column
         baseColumns.splice(-1, 0, {
-            title: "Type",
+            title: t("table_type"),
             field: "pageType",
             sorter: "string",
             formatter: pageTypeFormatter,
             headerFilter: "list",
             headerFilterParams: {
-                values: { "": "All", normal: "Normal", custom: "Custom" },
+                values: { "": t("table_all"), normal: t("table_normal"), custom: t("table_custom") },
             },
-            headerFilterPlaceholder: "Filter type...",
+            headerFilterPlaceholder: t("table_filterType"),
             width: 100,
             responsive: 3,
         })
@@ -98,11 +101,13 @@ export function initializeTable(contentType, modalManager) {
         paginationMode: "remote",
         paginationSize: 10,
         paginationSizeSelector: [5, 10, 20, 50, 100],
-        paginationCounter: "rows",
+        paginationCounter: function (start, end, total) {
+            return t("table_showing", { start, end, total })
+        },
         responsiveLayout: "hide",
         layout: "fitColumns",
         selectable: true,
-        placeholder: `No ${contentType} found!`,
+        placeholder: t(contentType === "pages" ? "table_noPagesFound" : "table_noPostsFound"),
         initialSort: [{ column: "updatedAt", dir: "desc" }],
         columns: baseColumns,
     })

@@ -103,10 +103,33 @@ export function addPostReferences(posts, options = {}) {
  */
 export function sortContentByDate(items) {
     return items.sort((a, b) => {
-        const dateA = a.frontmatter?.createdAt ? new Date(a.frontmatter.createdAt) : new Date(0)
-        const dateB = b.frontmatter?.createdAt ? new Date(b.frontmatter.createdAt) : new Date(0)
+        const dateA = getContentDate(a.frontmatter)
+        const dateB = getContentDate(b.frontmatter)
         return dateB - dateA
     })
+}
+
+/**
+ * Resolve the canonical display/sort date for a content item: prefer an
+ * explicit `publishDate` (set by the author), otherwise fall back to
+ * `createdAt`. Returns a Date or epoch 0.
+ * @param {Object} frontmatter
+ * @returns {Date}
+ */
+function getContentDate(frontmatter) {
+    const value = frontmatter?.publishDate || frontmatter?.createdAt
+    const parsed = value ? new Date(value) : new Date(0)
+    return isNaN(parsed.getTime()) ? new Date(0) : parsed
+}
+
+/**
+ * Canonical date string (ISO) used for display, preferring publishDate.
+ * Exported for reuse by routes/templates.
+ * @param {Object} frontmatter
+ * @returns {string|undefined}
+ */
+export function getContentDateValue(frontmatter) {
+    return frontmatter?.publishDate || frontmatter?.createdAt
 }
 
 /**

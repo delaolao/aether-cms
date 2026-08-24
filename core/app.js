@@ -59,6 +59,26 @@ export async function setupApp(app, config) {
     themeManager = new ThemeManager(config.themesDir, settingsService, menuManager)
     await themeManager.initialize()
 
+    // Add a charset to text/* responses so non-ASCII content (e.g. Chinese)
+    // is not mis-decoded by the browser when no charset is declared.
+    // This patches res.setHeader so that render/html/txt calls — which set
+    // "Content-Type: text/html" etc. — automatically get "; charset=utf-8".
+    app.use(async (req, res) => {
+        const originalSetHeader = res.setHeader.bind(res)
+        res.setHeader = (name, value) => {
+            if (
+                typeof name === "string" &&
+                name.toLowerCase() === "content-type" &&
+                typeof value === "string" &&
+                value.toLowerCase().startsWith("text/") &&
+                !value.toLowerCase().includes("charset=")
+            ) {
+                value = `${value}; charset=utf-8`
+            }
+            return originalSetHeader(name, value)
+        }
+    })
+
     // Add security headers to all responses
     app.use(async (req, res) => {
         // Security headers
@@ -66,6 +86,50 @@ export async function setupApp(app, config) {
         res.setHeader("X-Content-Type-Options", "nosniff") // Prevent MIME type sniffing
         res.setHeader("X-XSS-Protection", "1; mode=block") // XSS protection
         res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains") // Strict HTTPS
+    })
+
+    // Global hook: inject a theme-agnostic stylesheet into the <head> of every
+    // frontend page, so Aether's Obsidian-style enhancements (wikilinks,
+    // callouts, KaTeX, video embeds, hashtags, knowledge-links section, graph
+    // page) look consistent regardless of the active theme.
+    app.use(async (req, res) => {
+        const isFrontend =
+            !req.url.startsWith("/aether") &&
+            !req.url.startsWith("/api") &&
+            !req.url.startsWith("/core") &&
+            !req.url.startsWith("/assets") &&
+            !req.url.startsWith("/favicon") &&
+            !req.url.startsWith("/.well-known")
+
+        if (!isFrontend) return
+
+        const injectHead = (html) => {
+            const idx = String(html).toLowerCase().indexOf("<head>")
+            if (idx === -1) return html
+            const link = '<link rel="stylesheet" href="/assets/aether-extras.css" />\n'
+            return html.slice(0, idx + 6) + link + html.slice(idx + 6)
+        }
+
+        const originalRender = res.render.bind(res)
+        res.render = async (template, data) => {
+            let html = ""
+            const originalEnd = res.end.bind(res)
+            res.end = (chunk) => {
+                html = chunk
+                return res
+            }
+            try {
+                await originalRender(template, data)
+            } finally {
+                res.end = originalEnd
+            }
+            res.end(html ? injectHead(html) : html)
+        }
+
+        const originalHtml = res.html.bind(res)
+        res.html = (body, statusCode = 200) => {
+            originalHtml(injectHead(body), statusCode)
+        }
     })
 
     // Create the edit permissions middleware directly from auth manager

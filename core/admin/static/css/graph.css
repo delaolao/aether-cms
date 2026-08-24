@@ -1,0 +1,45 @@
+/* Knowledge graph page — reuses the admin design system (.dashboard,
+   .info-card, .btn, global input/select). Only the layout pieces specific
+   to the canvas live here. */
+
+.graph-subtitle {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.graph-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+/* The admin stylesheet sets input/select to width:100%; constrain them so
+   they sit inline in a row alongside the button and hint. */
+.graph-toolbar .graph-search {
+    width: 260px;
+    max-width: 100%;
+}
+.graph-toolbar .graph-type {
+    width: 130px;
+    max-width: 100%;
+}
+
+.graph-hint {
+    font-size: 0.85rem;
+    color: #6c757d;
+    white-space: nowrap;
+}
+
+#knowledge-graph {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: min(600px, 70vh);
+    min-height: 320px;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    background: #fff;
+}

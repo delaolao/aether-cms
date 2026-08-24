@@ -1,4 +1,4 @@
-import { marked } from "marked"
+import { renderMarkdown, getWikilinkIndexCached } from "../lib/markdown/markdown-renderer.js"
 import { enhancedFormatPagination, getSiblingCustomPagesNavigation } from "../utils/pagination-utils.js"
 import { prepareTemplateData, processTemplateData, handle404 } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
@@ -186,7 +186,9 @@ export function setupCustomRoutes(app, systems) {
             // Add the content page data
             let templateData = {
                 ...baseTemplateData,
-                content: marked.parse(contentPage.content),
+                content: renderMarkdown(contentPage.content, {
+                    wikilinks: await getWikilinkIndexCached(contentManager),
+                }),
                 metadata: contentPage.frontmatter,
                 fileType: "page",
                 contentRoute: true,

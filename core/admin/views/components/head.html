@@ -2,6 +2,7 @@
     <!--METADATA-->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="admin-lang" content="{{ adminLang }}" />
 
     <!--FAVICON-->
     <link rel="icon" href="/core/admin/static/images/aether-favicon.svg" type="image/svg+xml" />
@@ -28,5 +29,7 @@
     <link rel="stylesheet" href="/core/admin/static/css/menu-editor.css" />
     {{#elseif dashboardUsers}}
     <link rel="stylesheet" href="/core/admin/static/css/users.css" />
+    {{#elseif dashboardGraph}}
+    <link rel="stylesheet" href="/core/admin/static/css/graph.css" />
     {{/if}}
 </head>
