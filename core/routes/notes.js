@@ -108,7 +108,12 @@ export function setupNotesRoutes(app, systems) {
     // GET /notes/:slug — unified content route (post or page)
     // ------------------------------------------------------------------
     app.get("/notes/:slug", async (req, res) => {
-        const { slug } = req.params
+        let slug = req.params.slug
+        try {
+            slug = decodeURIComponent(slug)
+        } catch {
+            // keep raw if malformed
+        }
 
         try {
             // 1) Try posts first (with navigation + manual related posts)

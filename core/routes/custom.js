@@ -48,7 +48,17 @@ export function setupCustomRoutes(app, systems) {
         await detectAndGenerateSearch()
 
         // Destructure the path segments from the route parameters
-        const { path, subpath, subSubPath } = req.params
+        let { path, subpath, subSubPath } = req.params
+
+        // litenode does not URL-decode route params; decode segments that may
+        // contain non-ASCII (e.g. Chinese) custom-page slugs/paths.
+        const dec = (v) => {
+            if (v === undefined) return v
+            try { return decodeURIComponent(v) } catch { return v }
+        }
+        path = dec(path)
+        subpath = dec(subpath)
+        subSubPath = dec(subSubPath)
 
         // Combine the segments into a single path string
         // - Create an array with the segments

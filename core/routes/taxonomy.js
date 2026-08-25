@@ -7,7 +7,14 @@ export function setupTaxonomyRoutes(app, systems) {
 
     // Handle category routes: /category/:slug
     app.get("/category/:slug", async (req, res) => {
-        const { slug } = req.params
+        // litenode does not URL-decode route params (Chinese percent-encoding
+        // arrives as e.g. '%E5%AE...'), so decode before matching content.
+        let slug = req.params.slug
+        try {
+            slug = decodeURIComponent(slug)
+        } catch {
+            // keep raw if malformed
+        }
 
         try {
             // Get posts for this category with summaryView enabled
@@ -79,7 +86,13 @@ export function setupTaxonomyRoutes(app, systems) {
 
     // Handle tag routes: /tag/:slug
     app.get("/tag/:slug", async (req, res) => {
-        const { slug } = req.params
+        // litenode does not URL-decode route params; decode before matching.
+        let slug = req.params.slug
+        try {
+            slug = decodeURIComponent(slug)
+        } catch {
+            // keep raw if malformed
+        }
 
         try {
             // Get posts for this tag with summaryView enabled

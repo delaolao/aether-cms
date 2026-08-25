@@ -371,7 +371,9 @@ export class EditorEnhancements {
     addTag() {
         if (!this.tagInput || !this.tagInput.value.trim()) return
 
-        const tag = slugify(this.tagInput.value)
+        // Keep the raw name (trimmed) — slugifying would strip non-ASCII
+        // characters such as Chinese tag names.
+        const tag = this.tagInput.value.trim()
 
         // Skip if already exists
         if (this.tags.includes(tag)) {
@@ -449,7 +451,9 @@ export class EditorEnhancements {
     addCategory() {
         if (!this.categoryInput || !this.categoryInput.value.trim()) return
 
-        const category = slugify(this.categoryInput.value)
+        // Keep the raw name (trimmed) — slugifying would strip non-ASCII
+        // characters such as Chinese category names.
+        const category = this.categoryInput.value.trim()
 
         // For simplicity, we'll keep a single category - replace any existing one
         this.categories = [category]

@@ -14,7 +14,9 @@ export function slugify(text) {
         .trim()
         .replace(/\s+/g, "-") // Replace spaces with -
         .replace(/&/g, "-and-") // Replace & with 'and'
-        .replace(/[^\w\-]+/g, "") // Remove all non-word characters
+        // Keep word characters AND CJK (Chinese/Japanese/Korean) characters so
+        // Chinese slugs (categories, tags, titles) survive.
+        .replace(/[^\w\u4e00-\u9fa5\-]+/g, "") // Remove all non-word characters
         .replace(/\-\-+/g, "-") // Replace multiple - with single -
 }
 

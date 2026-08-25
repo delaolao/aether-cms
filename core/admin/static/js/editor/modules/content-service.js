@@ -191,8 +191,9 @@ export class ContentService {
                 // Category was explicitly removed - set to null
                 contentData.metadata.category = null
             } else if (typeof enhancementValues.category === "string" && enhancementValues.category.trim()) {
-                // Category is present
-                contentData.metadata.category = slugify(enhancementValues.category)
+                // Keep the raw category name (Chinese-friendly); the taxonomy
+                // routes match on the stored name, so no slugifying here.
+                contentData.metadata.category = enhancementValues.category.trim()
             } else {
                 // No explicit removal and no category set
                 contentData.metadata.category = null
@@ -203,8 +204,8 @@ export class ContentService {
                 contentData.metadata.tags = []
 
                 for (const tag of enhancementValues.tags) {
-                    const slug = slugify(tag)
-                    contentData.metadata.tags.push(slug)
+                    // Keep raw tag names (Chinese-friendly).
+                    contentData.metadata.tags.push(tag.trim())
                 }
             } else {
                 // No tags, set to null
