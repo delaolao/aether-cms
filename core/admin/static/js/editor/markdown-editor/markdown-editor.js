@@ -183,19 +183,46 @@ export class MarkdownEditor {
     }
 
     /**
-     * Update preview content in a specific element
+     * Update preview content in a specific element.
+     *
+     * Renders via the server-side /api/preview so the preview matches the
+     * frontend exactly ([[wikilinks]], callouts, KaTeX, video, etc.), avoiding
+     * the browser-marked extension + cache issues.
      * @param {HTMLElement} previewElement - The preview element to update
      */
     updatePreviewContent(previewElement) {
         const markdownText = this.state.getContent()
+        this._renderPreviewAsync(previewElement, markdownText)
+    }
 
-        // Parse markdown to HTML using marked (assuming it's loaded)
-        if (window.marked) {
-            previewElement.innerHTML = window.marked.parse(markdownText)
-        } else {
-            previewElement.innerHTML = "<p>Markdown preview not available</p>"
-            console.warn("Marked.js is not loaded, markdown preview is disabled")
-        }
+    async _renderPreviewAsync(previewElement, markdownText) {
+        // Debounce rapid typing.
+        if (this._previewTimer) clearTimeout(this._previewTimer)
+        const seq = (this._previewSeq = (this._previewSeq || 0) + 1)
+
+        this._previewTimer = setTimeout(async () => {
+            if (seq !== this._previewSeq) return // a newer render superseded this one
+
+            try {
+                const res = await fetch("/api/preview", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({ content: markdownText }),
+                })
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                const data = await res.json()
+                if (seq !== this._previewSeq) return
+                previewElement.innerHTML = data.html
+            } catch (error) {
+                // Fallback to local marked if the network call fails.
+                if (window.marked && seq === this._previewSeq) {
+                    previewElement.innerHTML = window.marked.parse(markdownText)
+                } else if (seq === this._previewSeq) {
+                    previewElement.innerHTML = "<p>Preview unavailable</p>"
+                }
+            }
+        }, 120)
     }
 
     /**

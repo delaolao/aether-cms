@@ -66,9 +66,24 @@ export async function setupApp(app, config) {
     app.use(async (req, res) => {
         const originalSetHeader = res.setHeader.bind(res)
         res.setHeader = (name, value) => {
+            const lowerName = typeof name === "string" ? name.toLowerCase() : name
+
+            // Modern admin JS/CSS is cached aggressively (max-age=86400) in
+            // production, which causes stale-admin-scripts issues after
+            // updates. Disable caching for admin static assets so the browser
+            // always picks up the latest admin code.
+            if (typeof req.url === "string" && req.url.startsWith("/core/admin/static")) {
+                if (lowerName === "cache-control") {
+                    value = "no-cache, no-store, must-revalidate"
+                }
+                if (lowerName === "expires") {
+                    value = "0"
+                }
+                return originalSetHeader(name, value)
+            }
+
             if (
-                typeof name === "string" &&
-                name.toLowerCase() === "content-type" &&
+                lowerName === "content-type" &&
                 typeof value === "string" &&
                 value.toLowerCase().startsWith("text/") &&
                 !value.toLowerCase().includes("charset=")

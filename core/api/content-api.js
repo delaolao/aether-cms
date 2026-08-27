@@ -9,7 +9,7 @@
  *   @param {Object} themeManager - Used primarily for theme-related operations when settings change
  *                                 (e.g., refreshing active theme when site settings are updated)
  */
-import { getWikilinkIndexCached, clearWikilinkCache } from "../lib/markdown/markdown-renderer.js"
+import { getWikilinkIndexCached, clearWikilinkCache, renderMarkdown } from "../lib/markdown/markdown-renderer.js"
 import { clearRelationGraphCache } from "../lib/markdown/wiki-relations.js"
 
 export function setupContentApi(app, systems) {
@@ -27,6 +27,22 @@ export function setupContentApi(app, systems) {
             res.json({ success: true, data })
         } catch (error) {
             res.status(500).json({ success: false, error: error.message })
+        }
+    })
+
+    // Server-side markdown preview for the admin editor. Renders with the exact
+    // same pipeline as the frontend, so [[wikilinks]], callouts, KaTeX, video,
+    // etc. appear in the preview exactly as they will on the published page.
+    app.post("/api/preview", authenticate, async (req, res) => {
+        try {
+            const content = (req.body && req.body.content) || ""
+            const wikilinks = await getWikilinkIndexCached(contentManager)
+            const html = renderMarkdown(content, { wikilinks })
+            res.json({ success: true, html })
+        } catch (error) {
+            console.error("Preview render error:", error)
+            // Never break the editor preview; return the error as text.
+            res.json({ success: true, html: "<pre>" + (error.message || "Preview error") + "</pre>" })
         }
     })
 
