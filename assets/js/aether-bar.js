@@ -5,6 +5,24 @@
 document.addEventListener("DOMContentLoaded", function () {
     // Access data from global variable
     const data = window.aetherBarData || {}
+    const lang = data.lang === "en" ? "en" : "zh"
+
+    // Runtime labels set via JS (tooltips etc.).
+    const LANG = {
+        zh: {
+            toggleBar: "切换管理工具条",
+            pageLoadGood: "页面加载时间(良好): ",
+            pageLoadAverage: "页面加载时间(一般): ",
+            pageLoadSlow: "页面加载时间(偏慢): ",
+        },
+        en: {
+            toggleBar: "Toggle admin bar",
+            pageLoadGood: "Page load time (Good): ",
+            pageLoadAverage: "Page load time (Average): ",
+            pageLoadSlow: "Page load time (Slow): ",
+        },
+    }
+    const T = LANG[lang] || LANG.zh
 
     // Initialize admin bar
     initAdminBar()
@@ -67,7 +85,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const toggleBtn = document.createElement("button")
         toggleBtn.className = "aether-toggle-btn"
         toggleBtn.innerHTML = '<i class="toggle-icon"></i>'
-        toggleBtn.setAttribute("title", "Toggle admin bar")
+        toggleBtn.setAttribute("title", T.toggleBar)
 
         // Add toggle button to admin bar
         adminBar.appendChild(toggleBtn)
@@ -200,13 +218,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         setTimeout(() => {
                             if (loadTime < 1) {
                                 perfIndicator.classList.add("bd-perf-good")
-                                perfIndicator.title = "Page load time (Good): " + loadTime.toFixed(2) + "s"
+                                perfIndicator.title = T.pageLoadGood + loadTime.toFixed(2) + "s"
                             } else if (loadTime < 2.5) {
                                 perfIndicator.classList.add("bd-perf-medium")
-                                perfIndicator.title = "Page load time (Average): " + loadTime.toFixed(2) + "s"
+                                perfIndicator.title = T.pageLoadAverage + loadTime.toFixed(2) + "s"
                             } else {
                                 perfIndicator.classList.add("bd-perf-poor")
-                                perfIndicator.title = "Page load time (Slow): " + loadTime.toFixed(2) + "s"
+                                perfIndicator.title = T.pageLoadSlow + loadTime.toFixed(2) + "s"
                             }
 
                             perfIndicator.style.opacity = "1"

@@ -29,6 +29,7 @@ export async function prepareTemplateData(req, themeManager, siteSettings, addit
             userData: req.currentUser,
             contentData: contentData,
             environment: process.env.NODE_ENV || "development",
+            language: siteSettings?.uiLanguage || "zh",
         })
 
         aetherBarInjection = aetherBarComponents.html
