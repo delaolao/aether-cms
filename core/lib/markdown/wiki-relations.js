@@ -12,7 +12,7 @@
  * directional backlinks mirror Obsidian's backlinks panel.
  */
 
-import { getWikilinkIndexCached, getContentUrl } from "./markdown-renderer.js"
+import { getWikilinkIndexCached, getContentUrl, lookupWikilink } from "./markdown-renderer.js"
 
 /**
  * Extract the target names of all [[wikilinks]] in a markdown string.
@@ -45,19 +45,7 @@ export function extractInternalLinks(content) {
  * @returns {Object|undefined}
  */
 export function resolveLinkLabel(label, wikilinks) {
-    const lower = label.trim().toLowerCase()
-    if (!lower) return undefined
-    if (wikilinks.has(lower)) return wikilinks.get(lower)
-
-    const normalized = lower.replace(/\s+/g, "-")
-    if (wikilinks.has(normalized)) return wikilinks.get(normalized)
-
-    for (const value of wikilinks.values()) {
-        if (value.slug && (value.slug.toLowerCase() === lower || value.slug.toLowerCase() === normalized)) {
-            return value
-        }
-    }
-    return undefined
+    return lookupWikilink(label, wikilinks)
 }
 
 /**

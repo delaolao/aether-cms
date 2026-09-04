@@ -24,3 +24,6 @@ node_modules
 
 # Environment Variables
 .env
+
+# Release snapshots (build artifacts)
+/release/

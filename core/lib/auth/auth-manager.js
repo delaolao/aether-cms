@@ -48,7 +48,7 @@ export class AuthManager {
                     email: "admin@example.com",
                     role: "admin",
                 })
-                console.log("Default admin user created. Username: admin, Password: admin")
+                console.log("Default admin user created. Username: admin, Password: admin — change it after first login.")
             }
         } catch (error) {
             console.error("Error initializing auth manager:", error)

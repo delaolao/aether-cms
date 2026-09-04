@@ -11,9 +11,22 @@
  */
 import { getWikilinkIndexCached, clearWikilinkCache, renderMarkdown } from "../lib/markdown/markdown-renderer.js"
 import { clearRelationGraphCache } from "../lib/markdown/wiki-relations.js"
+import { getTagFrequency } from "../utils/tag-cloud-utils.js"
 
 export function setupContentApi(app, systems) {
     const { contentManager, hookSystem, themeManager, settingsService, authenticate } = systems
+
+    // Tag frequency for the tag-cloud component. Public: used by the frontend
+    // word-cloud on every page, so it must not require an authenticated user.
+    app.get("/api/tags", async (req, res) => {
+        try {
+            const tags = await getTagFrequency(contentManager)
+            res.json({ success: true, tags })
+        } catch (error) {
+            console.error("Tag frequency error:", error)
+            res.status(500).json({ success: false, error: error.message })
+        }
+    })
 
     // Wikilink index: title → URL map for [[wikilink]] resolution (used by the
     // admin editor preview to match frontend rendering).

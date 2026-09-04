@@ -70,7 +70,7 @@ function getVideoInfo(src) {
 function renderMath(text, displayMode) {
     if (window.katex && typeof window.katex.renderToString === "function") {
         try {
-            return window.katex.renderToString(text, { displayMode, throwOnError: false })
+            return window.katex.renderToString(text, { displayMode, throwOnError: false, strict: false })
         } catch {
             /* fall through to code fallback */
         }

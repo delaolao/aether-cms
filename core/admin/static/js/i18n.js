@@ -51,6 +51,7 @@
             nav_posts: "文章",
             nav_pages: "页面",
             nav_knowledgeGraph: "知识图谱",
+            nav_tagCloud: "标签云",
             nav_media: "媒体",
             nav_themes: "主题",
             nav_users: "用户",
@@ -173,6 +174,9 @@
 
             // knowledge graph (admin)
             graph_title: "知识图谱",
+
+            // tag cloud (admin)
+            tagcloud_title: "标签云",
 
             // content table (JS-generated)
             table_title: "标题",
@@ -436,6 +440,7 @@
             nav_posts: "Posts",
             nav_pages: "Pages",
             nav_knowledgeGraph: "Knowledge Graph",
+            nav_tagCloud: "Tag Cloud",
             nav_media: "Media",
             nav_themes: "Themes",
             nav_users: "Users",
@@ -558,6 +563,9 @@
 
             // knowledge graph (admin)
             graph_title: "Knowledge Graph",
+
+            // tag cloud (admin)
+            tagcloud_title: "Tag Cloud",
 
             // content table (JS-generated)
             table_title: "Title",

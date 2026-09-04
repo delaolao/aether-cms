@@ -1,6 +1,7 @@
 import { setupHomeRoutes } from "./home.js"
 import { setupContentRoutes } from "./content.js"
 import { setupNotesRoutes } from "./notes.js"
+import { setupTagCloudRoute } from "./tag-cloud.js"
 import { setupTaxonomyRoutes } from "./taxonomy.js"
 import { setupCustomRoutes } from "./custom.js"
 import { setupSeoRoutes } from "./seo.js"
@@ -10,6 +11,7 @@ export function setupFrontendRoutes(app, systems) {
     setupHomeRoutes(app, systems)
     setupContentRoutes(app, systems)
     setupNotesRoutes(app, systems)
+    setupTagCloudRoute(app, systems)
     setupTaxonomyRoutes(app, systems)
     setupCustomRoutes(app, systems)
     setupSeoRoutes(app, systems)

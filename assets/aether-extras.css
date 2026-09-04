@@ -148,6 +148,7 @@
     margin-top: 0.5rem;
     font-size: 0.95rem;
 }
+.wiki-graph-link a + a { margin-left: 1.25rem; }
 
 /* --- Knowledge graph page --- */
 .graph-page {
@@ -200,3 +201,73 @@
     cursor: grab;
 }
 .graph-noscript { color: #c0392b; }
+
+/* --- Tag cloud (标签词云) page --- */
+.tag-cloud-page {
+    max-width: 100%;
+    overflow: hidden;
+}
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1.1rem 1.4rem;
+    padding: 1.6rem 0.75rem;
+    line-height: 1;
+}
+/* Each tag is a distinct "chip": its own background, border and padding so
+   neighbouring tags never read as one connected blob. */
+.tag-cloud-item {
+    display: inline-block;
+    text-decoration: none;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1;
+    padding: 0.42em 0.78em;
+    border: 1px solid rgba(0, 0, 0, 0.09);
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    transition: box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    will-change: transform;
+}
+/* Slow drift — each tag has its own duration/delay (set in JS) so they bob
+   out of sync, giving a gentle floating feel. */
+@keyframes tag-cloud-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+.tag-cloud-item {
+    animation: tag-cloud-float 6s ease-in-out infinite;
+}
+/* Hover: pause the drift and lift the chip so interaction stays obvious. */
+.tag-cloud-item:hover {
+    animation-play-state: paused;
+    transform: translateY(-3px);
+    background: #f5f8ff;
+    border-color: rgba(0, 0, 0, 0.16);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
+}
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+    .tag-cloud-item {
+        animation: none;
+    }
+}
+.tag-cloud-empty {
+    color: #777;
+    text-align: center;
+    padding: 1rem 0;
+}
+.tag-cloud-subtitle {
+    color: #6c757d;
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+}
+.tag-cloud-tip {
+    color: #999;
+    font-size: 0.85rem;
+    margin: 1rem 0 0;
+    text-align: center;
+}

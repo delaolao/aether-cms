@@ -124,12 +124,21 @@ export async function buildWikilinkIndex(contentManager) {
     const addItem = (frontmatter, type) => {
         if (!frontmatter || !frontmatter.title || frontmatter.status !== "published") return
         const url = getContentUrl(frontmatter, type)
-        index.set(frontmatter.title.trim().toLowerCase(), {
+        const entry = {
             url,
             title: frontmatter.title,
             slug: frontmatter.slug,
             type,
-        })
+        }
+        // Index the title under several normalised keys so [[wikilinks]] match
+        // even when the label differs slightly (extra/absent spaces, case).
+        const title = frontmatter.title.trim().toLowerCase()
+        const keys = new Set([
+            title,
+            title.replace(/\s+/g, "-"), // spaces → dashes
+            title.replace(/\s+/g, ""), // compact (no spaces)
+        ])
+        for (const key of keys) index.set(key, entry)
     }
 
     try {
@@ -147,6 +156,34 @@ export async function buildWikilinkIndex(contentManager) {
     }
 
     return index
+}
+
+/**
+ * Fuzzy lookup of a wikilink label against the wikilink index. Tries exact
+ * lowercase, then spaces→dashes, then compact, then slug match — so links are
+ * resilient to small spacing/case differences in the label vs the node title.
+ *
+ * @param {string} label - [[label]] target
+ * @param {Map<string, {url: string, title: string, slug: string, type: string}>} wikilinks
+ * @returns {Object|undefined}
+ */
+export function lookupWikilink(label, wikilinks) {
+    const lower = String(label || "").trim().toLowerCase()
+    if (!lower) return undefined
+    if (wikilinks.has(lower)) return wikilinks.get(lower)
+
+    const dashed = lower.replace(/\s+/g, "-")
+    if (wikilinks.has(dashed)) return wikilinks.get(dashed)
+
+    const compact = lower.replace(/\s+/g, "")
+    if (wikilinks.has(compact)) return wikilinks.get(compact)
+
+    for (const value of wikilinks.values()) {
+        if (value.slug && (value.slug.toLowerCase() === lower || value.slug.toLowerCase() === dashed)) {
+            return value
+        }
+    }
+    return undefined
 }
 
 /**
@@ -214,7 +251,7 @@ function createExtensions(options) {
                 return undefined
             },
             renderer(token) {
-                const target = wikilinks.get(token.page.toLowerCase())
+                const target = lookupWikilink(token.page, wikilinks)
                 const label = escapeHtml(token.label)
                 const anchor = token.anchor ? `#${encodeURIComponent(token.anchor)}` : ""
                 if (target) {
@@ -253,7 +290,7 @@ function createExtensions(options) {
                         : `${uploadsPrefix}/${token.link}`
                     return `<img class="embedded-image" src="${escapeHtml(src)}" alt="${caption}" loading="lazy" />`
                 }
-                const target = wikilinks.get(token.link.toLowerCase())
+                const target = lookupWikilink(token.link, wikilinks)
                 if (target) {
                     return `<a class="wikilink" href="${target.url}" title="${escapeHtml(target.title)}">${caption}</a>`
                 }
@@ -278,7 +315,13 @@ function createExtensions(options) {
             },
             renderer(token) {
                 try {
-                    const html = katex.renderToString(token.text, { displayMode: true, throwOnError: false })
+                    const html = katex.renderToString(token.text, {
+                        displayMode: true,
+                        throwOnError: false,
+                        // Avoid console spam when math contains non-LaTeX unicode
+                        // (e.g. Chinese punctuation like "、" in $...$) — still renders.
+                        strict: false,
+                    })
                     return `<div class="math-block">${html}</div>`
                 } catch {
                     return `<div class="math-block"><code>${escapeHtml(token.text)}</code></div>`
@@ -303,7 +346,7 @@ function createExtensions(options) {
             },
             renderer(token) {
                 try {
-                    return katex.renderToString(token.text, { throwOnError: false })
+                    return katex.renderToString(token.text, { throwOnError: false, strict: false })
                 } catch {
                     return `<code>${escapeHtml(token.text)}</code>`
                 }
@@ -497,5 +540,36 @@ export function createMarkdownRenderer(options = {}) {
  */
 export function renderMarkdown(content, options = {}) {
     if (!content) return ""
-    return createMarkdownRenderer(options).parse(content)
+    return createMarkdownRenderer(options).parse(normalizeHtmlInline(content))
+}
+
+/**
+ * Before parsing, split inline markdown that follows a block-level HTML close
+ * tag on the SAME line (e.g. `<div ...>...</div>  [[WikiLink]]`) onto its own
+ * paragraph. Otherwise marked swallows everything up to the next blank line as
+ * a raw HTML block and the follow-up markdown ([[wikilinks]], embeds, etc.)
+ * is never parsed.
+ *
+ * Only lines that pair a block-close tag with trailing non-space content are
+ * affected — ordinary content is untouched.
+ *
+ * @param {string} content
+ * @returns {string}
+ */
+function normalizeHtmlInline(content) {
+    return content
+        .split(/\n/)
+        .map((line) => {
+            const re =
+                /(<\/div>|<\/p>|<\/h[1-6]>|<\/li>|<\/td>|<\/th>|<\/blockquote>|<\/pre>|<\/table>|<\/ul>|<\/ol>)[ \t]+(\S.*)$/
+            const match = line.match(re)
+            if (!match) return line
+            const htmlPart = line.slice(0, match.index) + match[1]
+            const rest = match[2]
+            // Put the trailing markdown on its own paragraph (with a trailing
+            // blank line) so it is parsed as markdown and a following "---"
+            // stays a thematic break rather than a setext-underlined heading.
+            return `${htmlPart}\n\n${rest}\n`
+        })
+        .join("\n")
 }

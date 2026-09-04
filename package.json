@@ -1,7 +1,7 @@
 {
   "name": "aether-cms",
-  "version": "1.2.0",
-  "description": "A modern, elegant content management system designed for developers and content creators who value simplicity and power.",
+  "version": "0.5.0",
+  "description": "A modern, file-based Markdown CMS with an Obsidian-style knowledge graph — an enhanced integration of aether-cms + hblog-ng.",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -45,10 +45,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/LebCit/aether-cms.git"
+    "url": "https://github.com/delaolao/aether-cms.git"
   },
-  "homepage": "https://aether-cms.pages.dev/",
+  "homepage": "https://github.com/delaolao/aether-cms",
   "bugs": {
-    "url": "https://github.com/LebCit/aether-cms/issues"
+    "url": "https://github.com/delaolao/aether-cms/issues"
   }
 }

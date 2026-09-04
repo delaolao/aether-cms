@@ -1,0 +1,13 @@
+<div class="dashboard">
+    <h1 data-i18n="tagcloud_title">Tag Cloud</h1>
+
+    <div class="info-card">
+        <p class="tag-cloud-subtitle">共 {{ tagCloudStats }} 个标签，点击标签查看相关文章</p>
+
+        <div class="tag-cloud" id="tag-cloud"></div>
+
+        <p class="tag-cloud-tip">点击某个标签会在前台打开对应标签的文章列表。</p>
+    </div>
+
+    <script type="application/json" id="tag-cloud-data">{{ html_tagCloudJson }}</script>
+</div>

@@ -30,6 +30,7 @@
 - 所有已发布内容统一在 **`/notes/<slug>`** 路由下
 - 保存时自动解析 `[[wikilinks]]` 生成**双向关系**：文章页显示「反向链接 + 相关笔记」
 - **知识图谱页 `/notes/graph`**：零依赖 canvas 力导向图，支持节点拖拽、空白平移（边界停住）、滚轮缩放、双击复位、搜索筛选、点击跳转
+- **标签云 `/tag-cloud`**：按所有已发布文章的标签频次生成词云（胶囊芯片 + 缓慢漂浮），点击跳转到对应标签的文章列表；后台内嵌 `/aether/tag-cloud`
 - 后台内嵌图谱页 `/aether/graph`
 
 ### 界面与多语言
@@ -72,6 +73,16 @@ PORT=3000 npm start
 # 或创建 .env：PORT=3000
 ```
 
+会话签名密钥（生产环境必填，未设置会有安全警告）：
+
+```bash
+# .env
+COOKIE_SECRET=一串足够长的随机字符串
+# 可用 node -e "console.log(require('crypto').randomBytes(48).toString('hex'))" 生成
+```
+
+参考 `.env.example`。
+
 静态导出（可选）：
 
 ```bash
@@ -89,6 +100,7 @@ core/admin/                 后台界面（编辑器、媒体库、主题、用�
 core/app.js                 全局钩子（charset、主题无关样式注入）
 assets/aether-extras.css     主题无关的扩展样式
 assets/knowledge-graph.js    知识图谱运行时（零依赖 canvas）
+assets/tag-cloud.js          标签云运行时（零依赖）
 content/data/               内容与用户数据（.md + JSON，已被 .gitignore 排除）
 content/themes/             主题（默认主题含图谱模板与知识关联区块）
 ```

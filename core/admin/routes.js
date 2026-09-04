@@ -345,4 +345,24 @@ export function setupAdminRoutes(app, systems) {
             res.status(500).html("<h1>Error</h1><p>Could not load knowledge graph</p>")
         }
     })
+
+    // Tag cloud page (rendered inside the admin frame), like the knowledge graph.
+    app.get("/aether/tag-cloud", authenticate, async (req, res) => {
+        try {
+            const { getTagFrequency } = await import("../utils/tag-cloud-utils.js")
+            const tags = await getTagFrequency(contentManager)
+            const json = JSON.stringify(tags).replace(/</g, "\\u003c")
+
+            res.render("/core/admin/views/layouts/index.html", {
+                title: "Tag Cloud",
+                user: req.user,
+                dashboardTagCloud: true,
+                html_tagCloudJson: json,
+                tagCloudStats: tags.length,
+            })
+        } catch (error) {
+            console.error("Tag cloud page error:", error)
+            res.status(500).html("<h1>Error</h1><p>Could not load tag cloud</p>")
+        }
+    })
 }

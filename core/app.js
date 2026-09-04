@@ -35,8 +35,16 @@ export async function setupApp(app, config) {
     // Enable cookie parser
     app.enableCookieParser()
 
-    // Create signed cookies utility
-    const signedCookies = app.createSignedCookies("your-strong-secret-key-here")
+    // Create signed cookies utility. The signing secret MUST come from the
+    // environment (COOKIE_SECRET). A hardcoded secret is a security risk, so we
+    // only fall back to a clearly-marked dev value and warn loudly.
+    const cookieSecret = process.env.COOKIE_SECRET || "insecure-dev-secret-change-me"
+    if (!process.env.COOKIE_SECRET) {
+        console.warn(
+            "[aether] COOKIE_SECRET is not set — using an insecure fallback. Set COOKIE_SECRET in .env in production."
+        )
+    }
+    const signedCookies = app.createSignedCookies(cookieSecret)
 
     // Initialize core systems in proper sequence
     hookSystem = new HookSystem()
