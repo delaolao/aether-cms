@@ -46,6 +46,14 @@
         return h
     }
 
+    // Match the same condition as the CSS prefers-reduced-motion media query.
+    // When the user/OS asks for less motion we simply do NOT start the drift
+    // (identical static chips everywhere), instead of relying on a stylesheet
+    // override that inline animation longhands would otherwise win over.
+    var REDUCED_MOTION =
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
     function render(container, tags) {
         if (!container) return
         container.innerHTML = ""
@@ -71,10 +79,13 @@
                 var level = weightLevel(norm, PALETTE.length)
                 var color = PALETTE[level - 1]
 
-                // Gentle drift: duration 5–8s, negative delay to start mid-cycle.
+                // Gentle drift. Every animation longhand is set INLINE from JS
+                // (name/duration/timing/iteration/delay) so all engines apply
+                // identical animation settings — nothing depends on stylesheet
+                // shorthand ordering. Duration 3.5–6s with a ±10px keyframe is
+                // clearly perceptible; the negative delay starts each tag
+                // mid-cycle so they bob out of sync.
                 var seed = nameSeed(String(tag.name))
-                var duration = 5 + (seed % 4) // 5..8 seconds
-                var delay = -((seed % 10) / 10) * duration
 
                 var a = document.createElement("a")
                 a.className = "tag-cloud-item"
@@ -83,8 +94,17 @@
                 a.title = tag.name + " (" + tag.count + ")"
                 a.style.fontSize = size.toFixed(3) + "rem"
                 a.style.color = color
-                a.style.animationDuration = duration + "s"
-                a.style.animationDelay = delay.toFixed(2) + "s"
+
+                if (!REDUCED_MOTION) {
+                    var duration = 3.5 + (seed % 6) * 0.5 // 3.5..6.0 seconds
+                    var delay = -((seed % 100) / 100) * duration // start mid-cycle
+                    a.style.animationName = "tag-cloud-float"
+                    a.style.animationDuration = duration.toFixed(2) + "s"
+                    a.style.animationTimingFunction = "ease-in-out"
+                    a.style.animationIterationCount = "infinite"
+                    a.style.animationDelay = delay.toFixed(2) + "s"
+                }
+
                 a.setAttribute("data-count", tag.count)
                 a.setAttribute("data-level", level)
                 container.appendChild(a)

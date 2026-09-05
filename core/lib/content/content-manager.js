@@ -147,6 +147,16 @@ export class ContentManager {
         return await this.queryManager.getPostsByTag(tagSlug, options)
     }
 
+    /**
+     * Get published posts carrying ALL of the given tags (AND combination).
+     * @param {string[]} tagSlugs - Normalised tag slugs, e.g. ["教程", "obsidian"]
+     * @param {Object} options - Additional options (limit, offset, etc.)
+     * @returns {Array} Matching posts
+     */
+    async getPostsByTagCombination(tagSlugs, options = {}) {
+        return await this.queryManager.getPostsByTagCombination(tagSlugs, options)
+    }
+
     // PAGES MANAGEMENT
     // ---------------
 

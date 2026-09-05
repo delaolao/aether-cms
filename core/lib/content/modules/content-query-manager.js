@@ -5,6 +5,7 @@ import { join } from "node:path"
 import { getMarkdownFiles, findMarkdownFileByProperty } from "../utils/file-utils.js"
 import {
     renameProperty,
+    slugify,
     sortContentByDate,
     applyPagination,
     addPostReferences,
@@ -443,7 +444,66 @@ export class ContentQueryManager {
      * @returns {Promise<Array>} Matching posts
      */
     async getPostsByTag(tagSlug, options = {}) {
-        return this.getContentByFieldValue("post", "tag", tagSlug, options)
+        return this.getPostsByTagCombination([tagSlug], options)
+    }
+
+    /**
+     * Get published posts carrying ALL of the given tags (AND combination).
+     *
+     * Matching is slug-normalised: both the original casing ("Obsidian") and
+     * the URL slug form ("obsidian") resolve to the same tag, so combination
+     * URLs built from tag slugs (e.g. /tags/obsidian/教程) work reliably.
+     *
+     * @param {string[]} tagSlugs - Normalised tag slugs, e.g. ["教程", "obsidian"]
+     * @param {Object} options - Same options as getPosts (summaryView, previewLength, ...)
+     * @returns {Promise<Array>} Matching posts sorted newest first
+     */
+    async getPostsByTagCombination(tagSlugs, options = {}) {
+        try {
+            const slugs = (Array.isArray(tagSlugs) ? tagSlugs : [])
+                .map((s) => String(s).trim())
+                .filter(Boolean)
+
+            // Get all post files
+            const posts = await getMarkdownFiles(this.postsDir, this.app.parseMarkdownFile.bind(this.app))
+
+            // Filter by status if needed
+            let filteredPosts = posts
+            if (options.status) {
+                filteredPosts = posts.filter(
+                    (post) => post.frontmatter && post.frontmatter.status === options.status
+                )
+            }
+
+            // AND-filter on the requested tag slugs (slug-normalised compare)
+            if (slugs.length > 0) {
+                const slugSet = new Set(slugs)
+                filteredPosts = filteredPosts.filter((post) => {
+                    const rawTags = post.frontmatter?.tags
+                    const tagList = Array.isArray(rawTags)
+                        ? rawTags.map((t) => String(t))
+                        : typeof rawTags === "string" && rawTags.trim() !== ""
+                        ? rawTags.split(",").map((t) => t.trim())
+                        : []
+                    const tagSlugSet = new Set(tagList.filter(Boolean).map((tag) => slugify(tag)))
+                    // Every requested tag must be present
+                    for (const requested of slugSet) {
+                        if (!tagSlugSet.has(requested)) return false
+                    }
+                    return true
+                })
+            }
+
+            // Sort by date (newest first)
+            const sortedPosts = sortContentByDate(filteredPosts)
+
+            // Apply content transformation based on view options (no pagination
+            // here — the caller paginates, like the existing taxonomy routes)
+            return transformContentItems(sortedPosts, options)
+        } catch (error) {
+            console.error("Error getting posts by tag combination:", error)
+            return []
+        }
     }
 
     /**

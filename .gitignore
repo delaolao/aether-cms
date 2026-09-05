@@ -25,5 +25,8 @@ node_modules
 # Environment Variables
 .env
 
+# Local npm cache used by offline installs
+/.npm-cache/
+
 # Release snapshots (build artifacts)
 /release/

@@ -232,16 +232,18 @@
     transition: box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
     will-change: transform;
 }
-/* Slow drift — each tag has its own duration/delay (set in JS) so they bob
-   out of sync, giving a gentle floating feel. */
+/* Slow drift — animation longhands are set inline by assets/tag-cloud.js
+   (name/duration/timing/iteration/delay), so this file only supplies the
+   keyframes and the hover interaction. The base rule below deliberately has
+   NO `animation` shorthand: relying on a stylesheet shorthand (which a later
+   @media `animation: none` had to override) was the source of inconsistent
+   behaviour across browsers/OS "reduce motion" settings. */
 @keyframes tag-cloud-float {
     0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-6px); }
+    50%      { transform: translateY(-10px); }
 }
-.tag-cloud-item {
-    animation: tag-cloud-float 6s ease-in-out infinite;
-}
-/* Hover: pause the drift and lift the chip so interaction stays obvious. */
+/* Hover: pause the drift and lift the chip so interaction stays obvious.
+   (animation-play-state is not set inline by the JS, so this keeps working.) */
 .tag-cloud-item:hover {
     animation-play-state: paused;
     transform: translateY(-3px);
@@ -249,7 +251,10 @@
     border-color: rgba(0, 0, 0, 0.16);
     box-shadow: 0 5px 14px rgba(0, 0, 0, 0.12);
 }
-/* Respect users who prefer reduced motion. */
+/* Respect users who prefer reduced motion — belt and braces: tag-cloud.js
+   already skips starting the animation in this case (no inline animation
+   properties are set), this rule additionally neutralises any animation that
+   a third-party stylesheet might introduce. */
 @media (prefers-reduced-motion: reduce) {
     .tag-cloud-item {
         animation: none;
@@ -270,4 +275,132 @@
     font-size: 0.85rem;
     margin: 1rem 0 0;
     text-align: center;
+}
+
+/* --- Tag filter workbench (tag list pages, AND combination) --- */
+.tag-filter-bar {
+    border: 1px solid #e2e6ea;
+    border-radius: 10px;
+    background: #fbfcfd;
+    padding: 0.85rem 1rem;
+    margin: 0 0 1.5rem;
+}
+.tag-filter-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+}
+.tag-filter-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #444;
+    text-transform: uppercase;
+}
+.tag-filter-clear {
+    font-size: 0.8rem;
+    color: #c0392b;
+    text-decoration: none;
+    border-bottom: 1px dashed #e0a9a2;
+}
+.tag-filter-clear:hover { border-bottom-style: solid; }
+/* Two-row panel: active selection vs result-scoped facet suggestions */
+.tag-filter-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+}
+.tag-filter-row + .tag-filter-row {
+    border-top: 1px dashed #e6e9ed;
+    margin-top: 0.35rem;
+}
+.tag-filter-label {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    color: #8a94a0;
+    line-height: 1.9;
+    min-width: 3.2em;
+    user-select: none;
+}
+.tag-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    line-height: 1;
+}
+.filter-chip {
+    display: inline-block;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    padding: 0.4em 0.7em;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: #ffffff;
+    color: #1f2937;
+    transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.filter-chip:hover {
+    background: #eef4ff;
+    border-color: #0066cc;
+    box-shadow: 0 2px 6px rgba(0, 102, 204, 0.18);
+}
+/* Active (currently applied) chip: solid highlight; clicking removes it. */
+.filter-chip.active {
+    background: #0066cc;
+    border-color: #0066cc;
+    color: #ffffff;
+}
+.filter-chip.active:hover {
+    background: #b02a37;
+    border-color: #b02a37;
+    box-shadow: 0 2px 6px rgba(176, 42, 55, 0.25);
+}
+/* Small count badge on facet chips ("+ 标签 3") */
+.chip-count {
+    display: inline-block;
+    margin-left: 0.4em;
+    padding: 0.06em 0.45em;
+    border-radius: 999px;
+    background: rgba(0, 102, 204, 0.12);
+    color: #0055aa;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+.filter-chip:hover .chip-count {
+    background: #0066cc;
+    color: #ffffff;
+}
+.tag-filter-more {
+    width: 100%;
+    margin-top: 0.3rem;
+}
+.tag-filter-more a {
+    font-size: 0.78rem;
+    color: #0055aa;
+    text-decoration: none;
+    border-bottom: 1px dashed #9cc3ee;
+}
+.tag-filter-more a:hover { border-bottom-style: solid; }
+.tag-filter-note {
+    color: #777;
+    font-size: 0.82rem;
+    margin: 0.6rem 0 0;
+}
+/* Mini chips inside post cards on tag list pages */
+.post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.45rem 0 0;
+}
+.chip-mini {
+    font-size: 0.74rem;
+    padding: 0.28em 0.6em;
 }
