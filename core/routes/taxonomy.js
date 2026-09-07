@@ -145,6 +145,73 @@ function attachCardTagChips(posts, byNameLower, bySlug, activeSlugs, facetCounts
     }
 }
 
+// Escape HTML special characters in user-provided tag names.
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+}
+
+/**
+ * Build the tag workbench (filter bar) as a self-contained HTML fragment. This
+ * is the single source of the workbench markup and is injected into the
+ * rendered page for the ACTIVE theme by the global hook — so it appears on
+ * every theme (including themes downloaded outside this repo) without any
+ * per-theme template edits. Styles live in /assets/aether-extras.css (global).
+ */
+function buildTagWorkbenchHtml({ activeTags, facets, hiddenCount, showAll, slugsPath, tagName, resultCount }) {
+    const esc = escapeHtml
+
+    const activeChips = activeTags
+        .map(
+            (t) =>
+                `<a class="filter-chip active" href="${esc(t.href)}" title="点击移除「${esc(t.name)}」">✕ ${esc(
+                    t.name
+                )}</a>`
+        )
+        .join("")
+
+    const facetChips = facets
+        .map(
+            (f) =>
+                `<a class="filter-chip" href="${esc(f.href)}" title="追加「${esc(f.name)}」，预计 ${f.count} 篇">+ ${esc(
+                    f.name
+                )}<span class="chip-count">${f.count}</span></a>`
+        )
+        .join("")
+
+    const moreHtml =
+        hiddenCount > 0
+            ? showAll
+                ? `<div class="tag-filter-more"><a href="/tags/${esc(slugsPath)}">收起其余</a></div>`
+                : `<div class="tag-filter-more"><a href="/tags/${esc(slugsPath)}?showAll=1">展开其余 ${hiddenCount} 个</a></div>`
+            : ""
+
+    const noteHtml = resultCount
+        ? `<p class="tag-filter-note">当前 ${resultCount} 篇文章同时包含「${esc(tagName)}」。点「+ 标签」缩小范围，点「✕」移除。</p>`
+        : `<p class="tag-filter-note">没有文章同时包含「${esc(tagName)}」，移除部分标签试试。</p>`
+
+    const facetsHtml = facetChips
+        ? `<div class="tag-filter-chips">${facetChips}</div>${moreHtml}`
+        : `<p class="tag-filter-note">这些文章已没有其它可追加的标签。</p>`
+
+    return `<div class="tag-filter-bar">
+  <div class="tag-filter-head">
+    <span class="tag-filter-title">标签筛选 · AND</span>
+    <a class="tag-filter-clear" href="/tag-cloud">清除全部</a>
+  </div>
+  ${
+      activeChips
+          ? `<div class="tag-filter-row"><span class="tag-filter-label">已选</span><div class="tag-filter-chips">${activeChips}</div></div>`
+          : ""
+  }
+  <div class="tag-filter-row"><span class="tag-filter-label">结果内标签</span>${facetsHtml}</div>
+  ${noteHtml}
+</div>`
+}
+
 /**
  * Render the tag workbench for ANY number of selected tags (1..n, AND).
  * Used by both GET /tag/:slug and GET /tags/:slug1/:slug2/…
@@ -254,6 +321,20 @@ async function renderTagCombination(app, req, res, systems, rawSlugs) {
 
         // Process data through hooks
         const processedData = processTemplateData(hookSystem, enhancedTemplateData, "tag.html")
+
+        // Build + attach the theme-agnostic workbench HTML. The global render
+        // hook injects it into the final page (skipping themes that already
+        // render their own `class="tag-filter-bar"`), so it appears on all
+        // themes with no per-theme template edits.
+        res.tagWorkbenchHtml = buildTagWorkbenchHtml({
+            activeTags,
+            facets: visibleFacets,
+            hiddenCount: hiddenFacetCount,
+            showAll,
+            slugsPath: slugs.join("/"),
+            tagName: displayTerm,
+            resultCount: allTaxonomyPosts.length,
+        })
 
         res.render(templatePath, processedData)
     } catch (err) {

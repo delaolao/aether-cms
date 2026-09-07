@@ -133,6 +133,45 @@ export async function setupApp(app, config) {
             return html.slice(0, idx + 6) + link + html.slice(idx + 6)
         }
 
+        // Inject the tag workbench (filter bar) into the page for the ACTIVE
+        // theme. The fragment is built by the tag routes and attached to the
+        // response as `res.tagWorkbenchHtml`. It is placed right above the post
+        // list on whatever theme is active, so every theme (including themes
+        // downloaded outside this repo) shows the workbench without any
+        // per-theme template edits. Themes that render their own workbench
+        // (they already contain `class="tag-filter-bar"`) are skipped to avoid
+        // a duplicate panel.
+        const injectWorkbench = (html, fragment) => {
+            if (!fragment) return html
+            const str = String(html)
+            if (str.includes('class="tag-filter-bar"')) return html
+            const markers = [
+                'class="collection-content"',
+                'class="post-grid"',
+                'class="posts-list"',
+                'class="post-list"',
+                'class="post-cards"',
+                'class="taxonomy-collection"',
+            ]
+            let idx = -1
+            for (let i = 0; i < markers.length; i++) {
+                const at = str.indexOf(markers[i])
+                if (at !== -1) {
+                    idx = at
+                    break
+                }
+            }
+            if (idx === -1) {
+                const article = str.indexOf("<article")
+                idx = article !== -1 ? article : str.toLowerCase().indexOf("</main>")
+            }
+            if (idx === -1) {
+                const body = str.toLowerCase().indexOf("</body>")
+                idx = body !== -1 ? body : str.length
+            }
+            return str.slice(0, idx) + fragment + str.slice(idx)
+        }
+
         const originalRender = res.render.bind(res)
         res.render = async (template, data) => {
             let html = ""
@@ -146,7 +185,7 @@ export async function setupApp(app, config) {
             } finally {
                 res.end = originalEnd
             }
-            res.end(html ? injectHead(html) : html)
+            res.end(html ? injectWorkbench(injectHead(html), res.tagWorkbenchHtml) : html)
         }
 
         const originalHtml = res.html.bind(res)
