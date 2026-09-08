@@ -1,0 +1,50 @@
+<!-- Wiki links: backlinks + related notes derived from [[wikilinks]] -->
+{{#if hasWikiLinks}}
+<section class="wiki-links">
+    <h3>知识关联</h3>
+
+    {{#if backlinks.length}}
+    <div class="wiki-block">
+        <h4>反向链接 (Backlinks)</h4>
+        <ul class="wiki-backlinks">
+            {{#each backlinks}}
+            <li>
+                <a class="wikilink" href="{{url}}">{{title}}</a>
+                {{#if description}}
+                <span class="wiki-desc">{{description}}</span>
+                {{/if}}
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    {{#if wikiRelated.length}}
+    <div class="wiki-block">
+        <h4>相关笔记</h4>
+        <ul class="wiki-related">
+            {{#each wikiRelated}}
+            <li>
+                <a class="wikilink" href="{{url}}">{{title}}</a>
+                {{#if description}}
+                <span class="wiki-desc">{{description}}</span>
+                {{/if}}
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    <div class="wiki-graph-link">
+        <a href="/notes/graph" class="wikilink">查看知识图谱 →</a>
+        <a href="/tag-cloud" class="wikilink">标签云 →</a>
+    </div>
+</section>
+{{#else}}
+<section class="wiki-links">
+    <div class="wiki-graph-link">
+        <a href="/notes/graph" class="wikilink">查看知识图谱 →</a>
+        <a href="/tag-cloud" class="wikilink">标签云 →</a>
+    </div>
+</section>
+{{/if}}

@@ -1,0 +1,13 @@
+<header class="site-header">
+    <div class="header-inner">
+        <div class="brand">
+            {{#if site.siteLogo}}
+            <a href="/" class="brand-logo">
+                <img src="/content/uploads{{site.siteLogo}}" alt="{{ site.siteTitle }}" />
+            </a>
+            {{/if}}
+            <a class="brand-title" href="/">{{ site.siteTitle }}</a>
+        </div>
+        {{html_menu}}
+    </div>
+</header>

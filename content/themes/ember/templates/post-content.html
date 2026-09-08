@@ -1,0 +1,29 @@
+<article class="post">
+    <header class="post-header">
+        <h1>{{ metadata.title }}</h1>
+        {{#if metadata.subtitle}}
+        <p class="post-subtitle">{{metadata.subtitle}}</p>
+        {{/if}}
+        <div class="post-meta">
+            <span class="post-date">
+                {{#if metadata.publishDate}}{{metadata.publishDate | dateFormat('YYYY-MM-DD')}}{{#else}}{{metadata.createdAt | dateFormat('YYYY-MM-DD')}}{{/if}}
+            </span>
+            {{#if metadata.author}} · <span>{{metadata.author}}</span>{{/if}}
+            {{#if metadata.category}} · <a href="/category/{{metadata.category}}">{{metadata.category}}</a>{{/if}}
+            {{#if metadata.tags}}
+            · <span class="post-tags">{{#each metadata.tags}}<a href="/tag/{{this}}">#{{this}}</a> {{/each}}</span>
+            {{/if}}
+        </div>
+    </header>
+
+    <div class="post-content">{{ content }}</div>
+
+    <footer class="post-nav">
+        {{#if prevPost}}<a href="/post/{{ prevPost.slug }}">&larr; {{ prevPost.title }}</a>{{/if}}
+        {{#if nextPost}}<a href="/post/{{ nextPost.slug }}">{{ nextPost.title }} &rarr;</a>{{/if}}
+    </footer>
+
+    {{#if metadata.relatedPostsData}} {{#include("partials/related-posts.html")}} {{/if}}
+
+    {{#include("partials/wiki-links.html")}}
+</article>

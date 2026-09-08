@@ -16,6 +16,9 @@ content/themes/*
 # But do not ignore the default folder
 !content/themes/default
 
+# Built-in custom theme shipped with this repo (ember)
+!content/themes/ember
+
 # User uploads
 /content/uploads/
 

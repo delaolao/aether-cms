@@ -1,0 +1,31 @@
+{
+    "title": "Ember",
+    "description": "A warm, card-based theme with a colored header band and a clearly different layout from the default theme. Fully compatible with Aether's Obsidian wiki links, knowledge graph, tag workbench (AND filter), tag cloud and site logo.",
+    "version": "1.0.0",
+    "author": "delaolao",
+    "authorUrl": "https://github.com/delaolao",
+    "tags": [
+        "ember",
+        "warm",
+        "cards",
+        "two-tone",
+        "blog",
+        "responsive"
+    ],
+    "license": "GPL-3.0-or-later",
+    "features": [
+        "Site logo display",
+        "Responsive",
+        "Post cards",
+        "Wiki links",
+        "Knowledge graph",
+        "Tag workbench",
+        "Distinct layout & palette"
+    ],
+    "screenshot": "screenshot.svg",
+    "colors": [
+        "#e4572e",
+        "#f4a259",
+        "#2b2d42"
+    ]
+}

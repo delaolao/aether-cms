@@ -157,7 +157,11 @@ export async function setupApp(app, config) {
             for (let i = 0; i < markers.length; i++) {
                 const at = str.indexOf(markers[i])
                 if (at !== -1) {
-                    idx = at
+                    // Insert BEFORE the whole element that carries this class
+                    // (back up to the tag's opening "<"), otherwise the fragment
+                    // would land inside the tag and corrupt the markup.
+                    const tagStart = str.lastIndexOf("<", at)
+                    idx = tagStart !== -1 && tagStart < at ? tagStart : at
                     break
                 }
             }

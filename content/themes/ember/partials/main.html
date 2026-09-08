@@ -1,0 +1,12 @@
+<!-- Route dispatcher: picks the right body template based on the route flags. -->
+{{#if homeRoute}}
+{{#include("templates/index.html")}}
+{{#elseif fileType === "post"}}
+{{#include("templates/post-content.html")}}
+{{#elseif fileType === "page"}}
+{{#include("templates/page-content.html")}}
+{{#elseif taxonomyRoute}}
+{{#include("templates/collection.html")}}
+{{#elseif notFoundRoute}}
+{{#include("templates/404.html")}}
+{{/if}}

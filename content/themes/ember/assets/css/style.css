@@ -1,0 +1,244 @@
+/* ==========================================================================
+   Ember theme — warm, card-based, two-tone header.
+   Licensed GPL-3.0-or-later (part of the aether-cms project).
+   ========================================================================== */
+
+:root {
+    --ember: #e4572e;
+    --amber: #f4a259;
+    --ink: #2b2d42;
+    --cream: #fdf7f2;
+    --paper: #ffffff;
+    --muted: #8a7a72;
+    --line: #efe0d6;
+    --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    margin: 0;
+    background: var(--cream);
+    color: #3a3a3f;
+    font-family: "Segoe UI", "Microsoft YaHei", -apple-system, Arial, sans-serif;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--ember); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+img { max-width: 100%; height: auto; }
+.container { max-width: 1080px; margin: 0 auto; padding: 0 1rem; }
+
+/* ---------- Header ---------- */
+.site-header {
+    background: linear-gradient(120deg, var(--ember), var(--amber));
+    color: #fff;
+    box-shadow: 0 4px 18px rgba(228, 87, 46, 0.35);
+}
+.header-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 0.7rem; }
+.brand-logo { display: inline-flex; align-items: center; }
+.brand-logo img { height: 44px; width: auto; max-height: 44px; border-radius: 8px; background: #fff; padding: 3px; }
+.brand-title { color: #fff; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.02em; }
+.brand-title:hover { text-decoration: none; opacity: 0.92; }
+
+/* Navigation (html_menu) */
+.site-navigation { margin-left: auto; }
+.site-navigation .nav-menu,
+.site-navigation .sub-menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+.site-navigation li { position: relative; }
+.site-navigation a {
+    display: block;
+    color: #fff;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+.site-navigation a:hover,
+.site-navigation a.active {
+    background: rgba(255, 255, 255, 0.18);
+    text-decoration: none;
+}
+.site-navigation .sub-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 170px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+    padding: 0.4rem;
+    z-index: 50;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.1rem;
+}
+.site-navigation .menu-item-has-children:hover .sub-menu { display: flex; }
+.site-navigation .sub-menu a { color: var(--ink); font-weight: 500; }
+.site-navigation .sub-menu a:hover { background: #f6ede8; }
+.menu-toggle { display: none; }
+
+/* ---------- Hero (home) ---------- */
+.hero-band {
+    background: var(--ink);
+    color: #fff;
+    text-align: center;
+    padding: 3rem 1rem 2.6rem;
+    margin-bottom: 1.6rem;
+    border-bottom: 5px solid var(--amber);
+}
+.hero-band h1 { margin: 0 0 0.5rem; font-size: 2.4rem; font-weight: 800; }
+.hero-band p { margin: 0; color: #f0e7e2; font-size: 1.05rem; }
+
+/* ---------- Post cards ---------- */
+.post-grid,
+.posts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.4rem;
+    padding: 1.4rem 0;
+}
+.post-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(43, 45, 66, 0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    display: flex;
+    flex-direction: column;
+}
+.post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 26px rgba(43, 45, 66, 0.14);
+}
+.card-top {
+    height: 8px;
+    background: linear-gradient(90deg, var(--ember), var(--amber));
+}
+.card-body { padding: 1.1rem 1.2rem 1.3rem; flex: 1; }
+.card-title { margin: 0 0 0.4rem; font-size: 1.2rem; line-height: 1.35; }
+.card-title a { color: var(--ink); }
+.card-meta { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.7rem; }
+.card-sub { font-weight: 600; color: var(--ember); margin: 0 0 0.4rem; }
+.card-excerpt { color: #5c5c66; margin: 0; }
+.read-more { display: inline-block; margin-top: 0.8rem; font-weight: 700; color: var(--ember); }
+.read-more:hover { text-decoration: underline; }
+
+/* ---------- Related posts ---------- */
+.related-posts { margin-top: 2rem; padding-top: 1.2rem; border-top: 2px solid var(--line); }
+.related-posts h3 { color: var(--ink); }
+.related-post-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(43, 45, 66, 0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.related-post-card:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(43, 45, 66, 0.14); }
+.related-post-image { display: block; width: 100%; height: 160px; overflow: hidden; }
+.related-post-image img { width: 100%; height: 100%; object-fit: cover; }
+.related-post-content { padding: 1rem; }
+.related-post-content h4 { margin: 0 0 0.4rem; font-size: 1.05rem; line-height: 1.4; }
+.related-post-content h4 a { color: var(--ink); }
+.related-post-excerpt { font-size: 0.88rem; color: #5c5c66; margin: 0; }
+
+/* ---------- Single post / page ---------- */
+.post, .page {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.8rem 2rem;
+    margin: 1.4rem 0;
+    box-shadow: 0 3px 12px rgba(43, 45, 66, 0.06);
+}
+.post-header h1, .page-header h1 { margin: 0 0 0.4rem; color: var(--ink); font-size: 2rem; }
+.post-subtitle { color: var(--ember); font-weight: 600; margin: 0 0 0.6rem; }
+.post-meta { font-size: 0.86rem; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 0.8rem; margin-bottom: 1.2rem; }
+.post-content { font-size: 1.02rem; }
+.post-content h2, .post-content h3 { color: var(--ink); }
+.post-content pre { background: #2b2d42; color: #f6f3ef; border-radius: 8px; padding: 1rem; overflow-x: auto; }
+.post-content code { background: #f3eae4; color: var(--ember); border-radius: 4px; padding: 0.1em 0.35em; font-size: 0.92em; }
+.post-content pre code { background: transparent; color: inherit; padding: 0; }
+.post-content blockquote { border-left: 4px solid var(--amber); background: #fdf2ea; margin: 1rem 0; padding: 0.4rem 1rem; border-radius: 0 8px 8px 0; }
+.post-content img { border-radius: 10px; }
+.post-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--line);
+    margin-top: 1.6rem;
+    padding-top: 1rem;
+    font-weight: 600;
+}
+.post-tags a { margin-right: 0.4rem; }
+
+/* ---------- Collection / taxonomy ---------- */
+.collection-header h1 { color: var(--ink); }
+.collection-header p { color: var(--muted); }
+
+/* ---------- Pagination ---------- */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem 0 2rem;
+    color: var(--muted);
+}
+.pagination a { font-weight: 700; }
+
+/* ---------- Error ---------- */
+.error-page { text-align: center; padding: 4rem 1rem; }
+.error-page h1 { color: var(--ink); }
+
+/* ---------- Footer ---------- */
+.site-footer {
+    background: var(--ink);
+    color: #dcd6d1;
+    margin-top: 2rem;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+.site-footer a { color: var(--amber); }
+.site-footer p { margin: 0.3rem 0; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+    .header-inner { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+    .site-navigation { margin-left: 0; width: 100%; }
+    .site-navigation .nav-menu {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        display: none;
+    }
+    .site-navigation.toggled .nav-menu { display: flex; }
+    .post-grid { grid-template-columns: 1fr; }
+    .post, .page { padding: 1.2rem; }
+    .menu-toggle { display: inline-block; margin-left: auto; align-self: flex-end; }
+}

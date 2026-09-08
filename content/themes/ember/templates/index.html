@@ -1,0 +1,25 @@
+<section class="hero-band">
+    <h1>{{ site.siteTitle }}</h1>
+    <p>{{ site.siteDescription }}</p>
+</section>
+
+<div class="post-grid">
+    {{#each posts}}
+    <article class="post-card">
+        <div class="card-top"></div>
+        <div class="card-body">
+            <h2 class="card-title"><a href="/post/{{metadata.slug}}">{{metadata.title}}</a></h2>
+            <div class="card-meta">
+                {{#if metadata.publishDate}}{{metadata.publishDate | dateFormat('YYYY-MM-DD')}}{{#else}}{{metadata.createdAt | dateFormat('YYYY-MM-DD')}}{{/if}}
+                {{#if metadata.author}} · {{metadata.author}}{{/if}}
+            </div>
+            {{#if metadata.subtitle}}
+            <p class="card-sub">{{metadata.subtitle}}</p>
+            {{#else}}
+            <p class="card-excerpt">{{ metadata.excerpt || (content | truncate(60)) }}</p>
+            {{/if}}
+            <a class="read-more" href="/post/{{metadata.slug}}">阅读全文 →</a>
+        </div>
+    </article>
+    {{/each}}
+</div>

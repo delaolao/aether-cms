@@ -1,0 +1,20 @@
+<section class="related-posts">
+    <h3>相关文章</h3>
+    <div class="posts-grid">
+        {{#each metadata.relatedPostsData}}
+        <div class="related-post-card">
+            {{#if featuredImage}}
+            <a href="/post/{{slug}}" class="related-post-image">
+                <img src="/content/uploads{{featuredImage.url}}" alt="{{title}}" />
+            </a>
+            {{/if}}
+            <div class="related-post-content">
+                <h4><a href="/post/{{slug}}">{{title}}</a></h4>
+                {{#if excerpt}}
+                <p class="related-post-excerpt">{{excerpt}}</p>
+                {{/if}}
+            </div>
+        </div>
+        {{/each}}
+    </div>
+</section>

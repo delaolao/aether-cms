@@ -1,0 +1,45 @@
+<article class="page">
+    <header class="page-header">
+        <h1>{{ metadata.title }}</h1>
+    </header>
+
+    {{#if metadata.pageType === "normal"}}
+    <div class="page-content">{{ content }}</div>
+    {{#include("partials/wiki-links.html")}}
+    {{#else}}
+    <!-- Custom / listing page (e.g. blog): render a post grid -->
+    <div class="page-content">
+        {{#if posts.length === 0}}
+        <p>No posts found.</p>
+        {{#else}}
+        <div class="post-grid">
+            {{#each posts}}
+            <article class="post-card">
+                <div class="card-top"></div>
+                <div class="card-body">
+                    <h2 class="card-title"><a href="/post/{{metadata.slug}}">{{metadata.title}}</a></h2>
+                    <div class="card-meta">
+                        {{#if metadata.publishDate}}{{metadata.publishDate | dateFormat('YYYY-MM-DD')}}{{#else}}{{metadata.createdAt | dateFormat('YYYY-MM-DD')}}{{/if}}
+                        {{#if metadata.author}} · {{metadata.author}}{{/if}}
+                    </div>
+                    {{#if metadata.subtitle}}
+                    <p class="card-sub">{{metadata.subtitle}}</p>
+                    {{#else}}
+                    <p class="card-excerpt">{{ metadata.excerpt || (content | truncate(60)) }}</p>
+                    {{/if}}
+                    <a class="read-more" href="/post/{{metadata.slug}}">阅读全文 →</a>
+                </div>
+            </article>
+            {{/each}}
+        </div>
+        {{#if pagination}}
+        <div class="pagination">
+            {{#if pagination.urls.prev}}<a href="{{pagination.urls.prev}}">&larr; 上一页</a>{{/if}}
+            <span>第 {{ pagination.currentPage }} / {{ pagination.totalPages }} 页</span>
+            {{#if pagination.urls.next}}<a href="{{pagination.urls.next}}">下一页 &rarr;</a>{{/if}}
+        </div>
+        {{/if}}
+        {{/if}}
+    </div>
+    {{/if}}
+</article>
