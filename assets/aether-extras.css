@@ -5,12 +5,34 @@
    theme), so [[wikilinks]], callouts, KaTeX math, video embeds, hashtags,
    file attachments, the "knowledge links" section and the knowledge-graph
    page look the same on every theme.
+
+   Colours are driven by the --aether-* custom properties below. The defaults
+   match the bundled Default theme; a theme can override them (in its own
+   style.css, which loads after this file) to make the theme-agnostic
+   components match its palette — e.g. the Ember theme sets a warm accent.
    ========================================================================== */
+
+:root {
+    --aether-accent: #0066cc;            /* primary accent (default blue) */
+    --aether-accent-contrast: #ffffff;   /* text on accent */
+    --aether-accent-hover: #0055aa;      /* darker accent for hover */
+    --aether-accent-soft: rgba(0, 102, 204, 0.12);    /* translucent accent bg */
+    --aether-accent-line: #9cc3ee;       /* dashed links in accent */
+    --aether-accent-glow: rgba(0, 102, 204, 0.18);    /* hover shadow */
+    --aether-accent-shade: #eef4ff;      /* hover chip bg */
+    --aether-panel-bg: #fbfcfd;          /* workbench panel bg */
+    --aether-panel-line: #e2e6ea;        /* workbench border */
+    --aether-row-line: #e6e9ed;          /* panel row divider */
+    --aether-fg: #444;                   /* panel title text */
+    --aether-muted: #8a94a0;             /* panel label / muted text */
+    --aether-danger: #c0392b;            /* "clear all" (remove) colour */
+    --aether-danger-line: #e0a9a2;
+}
 
 /* --- Wikilinks --- */
 .wikilink {
-    color: #0066cc;
-    border-bottom: 1px dotted #0066cc;
+    color: var(--aether-accent);
+    border-bottom: 1px dotted var(--aether-accent);
     text-decoration: none;
 }
 .wikilink:hover {
@@ -97,7 +119,7 @@
 
 /* --- Hashtags --- */
 .hashtag {
-    color: #0066cc;
+    color: var(--aether-accent);
     text-decoration: none;
     font-family: monospace;
 }
@@ -180,14 +202,14 @@
 .graph-toolbar .graph-type { width: 130px; max-width: 100%; }
 .graph-toolbar button {
     padding: 0.4rem 0.9rem;
-    border: 1px solid #0066cc;
-    background: #0066cc;
-    color: #fff;
+    border: 1px solid var(--aether-accent);
+    background: var(--aether-accent);
+    color: var(--aether-accent-contrast);
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
 }
-.graph-toolbar button:hover { background: #0055aa; }
+.graph-toolbar button:hover { background: var(--aether-accent-hover); }
 .graph-hint { font-size: 0.8rem; color: #999; }
 #knowledge-graph {
     display: block;
@@ -279,9 +301,9 @@
 
 /* --- Tag filter workbench (tag list pages, AND combination) --- */
 .tag-filter-bar {
-    border: 1px solid #e2e6ea;
+    border: 1px solid var(--aether-panel-line);
     border-radius: 10px;
-    background: #fbfcfd;
+    background: var(--aether-panel-bg);
     padding: 0.85rem 1rem;
     margin: 0 0 1.5rem;
 }
@@ -296,14 +318,14 @@
     font-size: 0.85rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    color: #444;
+    color: var(--aether-fg);
     text-transform: uppercase;
 }
 .tag-filter-clear {
     font-size: 0.8rem;
-    color: #c0392b;
+    color: var(--aether-danger);
     text-decoration: none;
-    border-bottom: 1px dashed #e0a9a2;
+    border-bottom: 1px dashed var(--aether-danger-line);
 }
 .tag-filter-clear:hover { border-bottom-style: solid; }
 /* Two-row panel: active selection vs result-scoped facet suggestions */
@@ -314,13 +336,13 @@
     padding: 0.35rem 0;
 }
 .tag-filter-row + .tag-filter-row {
-    border-top: 1px dashed #e6e9ed;
+    border-top: 1px dashed var(--aether-row-line);
     margin-top: 0.35rem;
 }
 .tag-filter-label {
     flex: 0 0 auto;
     font-size: 0.75rem;
-    color: #8a94a0;
+    color: var(--aether-muted);
     line-height: 1.9;
     min-width: 3.2em;
     user-select: none;
@@ -346,20 +368,20 @@
     transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .filter-chip:hover {
-    background: #eef4ff;
-    border-color: #0066cc;
-    box-shadow: 0 2px 6px rgba(0, 102, 204, 0.18);
+    background: var(--aether-accent-shade);
+    border-color: var(--aether-accent);
+    box-shadow: 0 2px 6px var(--aether-accent-glow);
 }
 /* Active (currently applied) chip: solid highlight; clicking removes it. */
 .filter-chip.active {
-    background: #0066cc;
-    border-color: #0066cc;
-    color: #ffffff;
+    background: var(--aether-accent);
+    border-color: var(--aether-accent);
+    color: var(--aether-accent-contrast);
 }
 .filter-chip.active:hover {
-    background: #b02a37;
-    border-color: #b02a37;
-    box-shadow: 0 2px 6px rgba(176, 42, 55, 0.25);
+    background: var(--aether-danger);
+    border-color: var(--aether-danger);
+    box-shadow: 0 2px 6px rgba(192, 57, 43, 0.25);
 }
 /* Small count badge on facet chips ("+ 标签 3") */
 .chip-count {
@@ -367,15 +389,15 @@
     margin-left: 0.4em;
     padding: 0.06em 0.45em;
     border-radius: 999px;
-    background: rgba(0, 102, 204, 0.12);
-    color: #0055aa;
+    background: var(--aether-accent-soft);
+    color: var(--aether-accent);
     font-size: 0.72rem;
     font-weight: 700;
     line-height: 1.5;
 }
 .filter-chip:hover .chip-count {
-    background: #0066cc;
-    color: #ffffff;
+    background: var(--aether-accent);
+    color: var(--aether-accent-contrast);
 }
 .tag-filter-more {
     width: 100%;
@@ -383,9 +405,9 @@
 }
 .tag-filter-more a {
     font-size: 0.78rem;
-    color: #0055aa;
+    color: var(--aether-accent);
     text-decoration: none;
-    border-bottom: 1px dashed #9cc3ee;
+    border-bottom: 1px dashed var(--aether-accent-line);
 }
 .tag-filter-more a:hover { border-bottom-style: solid; }
 .tag-filter-note {

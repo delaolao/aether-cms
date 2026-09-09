@@ -12,6 +12,24 @@
     --muted: #8a7a72;
     --line: #efe0d6;
     --radius: 14px;
+
+    /* Aether theme-agnostic component colours — warm variant.
+       These are consumed by /assets/aether-extras.css so the tag workbench,
+       wiki links, hashtags and graph controls match the Ember palette. */
+    --aether-accent: #e4572e;
+    --aether-accent-contrast: #ffffff;
+    --aether-accent-hover: #c9451f;
+    --aether-accent-soft: rgba(228, 87, 46, 0.12);
+    --aether-accent-line: #eeb6a3;
+    --aether-accent-glow: rgba(228, 87, 46, 0.18);
+    --aether-accent-shade: #fdece4;
+    --aether-panel-bg: #fff6f0;
+    --aether-panel-line: #f0d7cd;
+    --aether-row-line: #f0d7cd;
+    --aether-fg: #443a35;
+    --aether-muted: #9a8a80;
+    --aether-danger: #c0392b;
+    --aether-danger-line: #e6b3aa;
 }
 
 * { box-sizing: border-box; }
