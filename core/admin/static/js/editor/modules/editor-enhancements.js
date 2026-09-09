@@ -9,6 +9,7 @@ export class EditorEnhancements {
         this.tagInput = document.getElementById("tagInput")
         this.tagsList = document.getElementById("tagsList")
         this.addTagBtn = document.getElementById("addTag")
+        this.recommendTagsBtn = document.getElementById("recommendTags")
 
         this.categoryInput = document.getElementById("categoryInput")
         this.categoriesList = document.getElementById("categoriesList")
@@ -61,6 +62,10 @@ export class EditorEnhancements {
         // Tag events
         if (this.addTagBtn) {
             this.addTagBtn.addEventListener("click", () => this.addTag())
+        }
+
+        if (this.recommendTagsBtn) {
+            this.recommendTagsBtn.addEventListener("click", () => this.recommendTags())
         }
 
         if (this.tagInput) {
@@ -413,6 +418,73 @@ export class EditorEnhancements {
 
         // Mark editor as dirty (unsaved changes)
         this.markEditorDirty()
+    }
+
+    /**
+     * Ask the backend to recommend tags for the current content and add them.
+     * Uses /api/suggest-tags (Ollama or jieba backend).
+     */
+    async recommendTags() {
+        const contentEl = document.getElementById("content")
+        const titleEl = document.getElementById("title")
+        const content = contentEl ? contentEl.value : ""
+        if (!content || !content.trim()) {
+            alert("请先输入正文内容，再推荐标签。")
+            return
+        }
+        const title = titleEl ? titleEl.value : ""
+        const btn = this.recommendTagsBtn
+        const originalText = btn ? btn.textContent : ""
+        if (btn) {
+            btn.disabled = true
+            btn.textContent = "推荐中…"
+        }
+
+        try {
+            const resp = await fetch("/api/suggest-tags", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ title, content }),
+            })
+            const data = await resp.json()
+            if (data.success) {
+                if (data.tags && data.tags.length) {
+                    this.addTagsList(data.tags)
+                } else {
+                    alert(data.message || "未能生成标签。")
+                }
+            } else {
+                alert(data.error || "推荐标签失败。")
+            }
+        } catch (e) {
+            alert("推荐标签出错：" + (e.message || e))
+        } finally {
+            if (btn) {
+                btn.disabled = false
+                btn.textContent = originalText
+            }
+        }
+    }
+
+    /**
+     * Add a batch of recommended tags (no duplicates) and re-render once.
+     * @param {string[]} tags
+     */
+    addTagsList(tags) {
+        const list = Array.isArray(tags) ? tags : []
+        let added = false
+        for (const raw of list) {
+            const tag = String(raw).trim()
+            if (!tag || this.tags.includes(tag)) continue
+            this.removedTags.delete(tag)
+            this.tags.push(tag)
+            added = true
+        }
+        if (added) {
+            this.renderTags()
+            this.markEditorDirty()
+        }
     }
 
     /**

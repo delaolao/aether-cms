@@ -12,9 +12,23 @@
 import { getWikilinkIndexCached, clearWikilinkCache, renderMarkdown } from "../lib/markdown/markdown-renderer.js"
 import { clearRelationGraphCache } from "../lib/markdown/wiki-relations.js"
 import { getTagFrequency } from "../utils/tag-cloud-utils.js"
+import { suggestTags } from "../utils/tag-suggester.js"
 
 export function setupContentApi(app, systems) {
     const { contentManager, hookSystem, themeManager, settingsService, authenticate } = systems
+
+    // Suggest tags for an article using an AI backend (Ollama) or jieba keyword
+    // extraction. Used by the editor "推荐标签" button.
+    app.post("/api/suggest-tags", authenticate, async (req, res) => {
+        try {
+            const { title, content } = req.body || {}
+            const result = await suggestTags({ title, content })
+            res.json({ success: true, ...result })
+        } catch (error) {
+            console.error("Suggest tags error:", error)
+            res.status(500).json({ success: false, error: error.message })
+        }
+    })
 
     // Tag frequency for the tag-cloud component. Public: used by the frontend
     // word-cloud on every page, so it must not require an authenticated user.

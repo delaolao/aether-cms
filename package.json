@@ -36,6 +36,7 @@
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "adm-zip": "^0.5.16",
+    "jieba-wasm": "^2.4.0",
     "katex": "^0.18.4",
     "litenode": "^4.7.1",
     "marked": "^15.0.11"

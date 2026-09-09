@@ -63,7 +63,7 @@
             login_username: "用户名",
             login_password: "密码",
             login_submit: "登录 →",
-            login_footer: "© {year} Aether Next-Gen CMS",
+            login_footer: "Aether CMS by teacherGeng",
             login_error_generic: "用户名或密码错误",
 
             // dashboard
@@ -398,6 +398,7 @@
             editor_add: "添加",
             editor_addCategoryHelp: "添加一个主分类以组织内容。",
             editor_tags: "标签",
+            editor_recommendTags: "✨ 推荐标签",
             editor_addTag: "添加标签…",
             editor_addTagHelp: "添加多个标签以帮助用户找到相关内容。",
             editor_excerpt: "摘要",
@@ -452,7 +453,7 @@
             login_username: "Username",
             login_password: "Password",
             login_submit: "Log In →",
-            login_footer: "© {year} Aether Next-Gen CMS",
+            login_footer: "Aether CMS by teacherGeng",
             login_error_generic: "Invalid username or password",
 
             // dashboard
@@ -787,6 +788,7 @@
             editor_add: "Add",
             editor_addCategoryHelp: "Add a primary category for organizing content.",
             editor_tags: "Tags",
+            editor_recommendTags: "✨ Recommend tags",
             editor_addTag: "Add a tag...",
             editor_addTagHelp: "Add multiple tags to help users find related content.",
             editor_excerpt: "Excerpt",
