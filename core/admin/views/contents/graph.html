@@ -2,7 +2,7 @@
     <h1 data-i18n="graph_title">Knowledge Graph</h1>
 
     <div class="info-card graph-card">
-        <p class="graph-subtitle">共 {{ graphStats.nodes }} 个节点、{{ graphStats.edges }} 条链接</p>
+        <p class="graph-subtitle">共 {{ graphStats.nodes }} 个节点、{{ graphStats.edges }} 条链接{{#if graphStats.totalViews}}、{{ graphStats.totalViews }} 次阅读{{/if}}</p>
 
         <div class="graph-toolbar">
             <input type="text" id="graph-search" class="graph-search" placeholder="搜索节点标题…" autocomplete="off" />
@@ -10,6 +10,14 @@
                 <option value="">全部类型</option>
                 <option value="post">文章</option>
                 <option value="page">页面</option>
+            </select>
+            <select id="graph-views-filter" class="graph-type">
+                <option value="">全部阅读量</option>
+                <option value="top5">阅读 Top 5</option>
+                <option value="top10">阅读 Top 10</option>
+                <option value="top20">阅读 Top 20</option>
+                <option value="read">有阅读</option>
+                <option value="unread">未被阅读</option>
             </select>
             <button type="button" id="graph-reset" class="btn btn-sm btn-outline">重置视图</button>
             <span class="graph-hint">拖拽节点 · 空白拖拽平移(边界停住) · 滚轮缩放 · 双击复位 · 点击节点打开</span>

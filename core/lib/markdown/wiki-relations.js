@@ -199,18 +199,38 @@ export async function getWikiRelated(contentManager, itemId, manualRelated = [])
 
 /**
  * Public graph payload for the /graph page (nodes + edges only, plus stats).
+ *
+ * When an analytics store is supplied, each node also carries its view count
+ * (`views`) and `stats.totalViews` is included — so the graph can show which
+ * notes actually get read. Nodes are copied rather than mutated, because the
+ * underlying relation graph is cached and shared across requests.
+ *
  * @param {Object} contentManager
+ * @param {Object} [options]
+ * @param {Object} [options.analyticsStore] - AnalyticsStore instance (optional)
  * @returns {Promise<{nodes: Object[], edges: Object[], stats: Object}>}
  */
-export async function getGraphPayload(contentManager) {
+export async function getGraphPayload(contentManager, options = {}) {
     const graph = await getRelationGraphCached(contentManager)
+    const analyticsStore = options?.analyticsStore || null
+
+    const nodes = graph.nodes.map((node) => ({
+        ...node,
+        views: analyticsStore
+            ? analyticsStore.viewCountFor({ id: node.id, slug: node.slug, path: node.url })
+            : 0,
+    }))
+
+    const totalViews = nodes.reduce((sum, node) => sum + (node.views || 0), 0)
+
     return {
-        nodes: graph.nodes,
+        nodes,
         edges: graph.edges,
         stats: {
-            nodes: graph.nodes.length,
+            nodes: nodes.length,
             edges: graph.edges.length,
             linked: graph.nodes.filter((n) => graph.incoming.has(n.id) || graph.outgoing.has(n.id)).length,
+            totalViews,
         },
     }
 }

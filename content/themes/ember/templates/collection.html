@@ -14,6 +14,7 @@
         {{#elseif taxonomyType === 'tag'}}
         <p>标签「{{ taxonomyTerm }}」下的文章。</p>
         {{/if}}
+        <p class="collection-pageviews"><span class="post-views" title="本页访问次数">👁 {{ viewCount || 0 }}</span></p>
     </header>
 
     <!-- 标签筛选工作台（AND）由全局自动注入到 .post-grid 之前 -->
@@ -23,10 +24,11 @@
         <article class="post-card">
             <div class="card-top"></div>
             <div class="card-body">
-                <h2 class="card-title"><a href="/post/{{metadata.slug}}">{{metadata.title}}</a></h2>
+                <h2 class="card-title"><a href="/post/{{metadata.slug}}">{{metadata.title}}</a>{{#if metadata.mediaIcons.length}}<span class="post-media-badges">{{#each metadata.mediaIcons}}<span class="media-badge {{ type }}" title="{{ label }}">{{ icon }}</span>{{/each}}</span>{{/if}}</h2>
                 <div class="card-meta">
                     {{#if metadata.publishDate}}{{metadata.publishDate | dateFormat('YYYY-MM-DD')}}{{#else}}{{metadata.createdAt | dateFormat('YYYY-MM-DD')}}{{/if}}
                     {{#if metadata.author}} · {{metadata.author}}{{/if}}
+                    <span class="post-views" title="阅读次数"> · 👁 {{ metadata.viewCount || 0 }}</span>
                 </div>
                 {{#if tagsView.length}}
                 <div class="post-tags">

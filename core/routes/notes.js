@@ -30,11 +30,21 @@ function buildGraphContent(payload, graphJson) {
         })
         .join("")
 
+    const viewsText = stats.totalViews ? `、${stats.totalViews} 次阅读` : ""
+
     return `<div class="graph-page" style="margin-top:1rem;">
-  <p style="color:#777;margin:0 0 1rem;">共 ${stats.nodes} 个节点、${stats.edges} 条链接</p>
+  <p style="color:#777;margin:0 0 1rem;">共 ${stats.nodes} 个节点、${stats.edges} 条链接${viewsText}</p>
   <div class="graph-toolbar">
     <input type="text" id="graph-search" class="graph-search" placeholder="搜索节点标题…" autocomplete="off" />
     <select id="graph-type-filter" class="graph-type">${nodeOptions}</select>
+    <select id="graph-views-filter" class="graph-type">
+      <option value="">全部阅读量</option>
+      <option value="top5">阅读 Top 5</option>
+      <option value="top10">阅读 Top 10</option>
+      <option value="top20">阅读 Top 20</option>
+      <option value="read">有阅读</option>
+      <option value="unread">未被阅读</option>
+    </select>
     <button type="button" id="graph-reset">重置视图</button>
     <span class="graph-hint">拖拽节点 · 空白拖拽平移(边界停住) · 滚轮缩放 · 双击复位 · 点击节点打开</span>
   </div>
@@ -45,7 +55,7 @@ function buildGraphContent(payload, graphJson) {
 }
 
 export function setupNotesRoutes(app, systems) {
-    const { themeManager, contentManager, hookSystem, settingsService } = systems
+    const { themeManager, contentManager, hookSystem, settingsService, analyticsStore, visitTracker } = systems
 
     // ------------------------------------------------------------------
     // GET /notes/graph — knowledge graph page
@@ -53,7 +63,8 @@ export function setupNotesRoutes(app, systems) {
     app.get("/notes/graph", async (req, res) => {
         try {
             const siteSettings = await contentManager.getSiteSettings()
-            const payload = await getGraphPayload(contentManager)
+            // Pass the analytics store so graph nodes carry their view counts.
+            const payload = await getGraphPayload(contentManager, { analyticsStore })
 
             // JSON is embedded raw; escape "</script" sequences for safety.
             const graphJson = JSON.stringify(payload).replace(/</g, "\\u003c")
@@ -130,6 +141,15 @@ export function setupNotesRoutes(app, systems) {
                     getWikiRelated(contentManager, post.frontmatter.id, post.relatedPostsData),
                 ])
 
+                // Analytics: tag the page so the visit is attributed to this post,
+                // and expose its view count to the template.
+                visitTracker?.markContent(res, {
+                    id: post.frontmatter.id,
+                    slug: post.frontmatter.slug,
+                    type: "post",
+                    title: post.frontmatter.title,
+                })
+
                 let templateData = await prepareTemplateData(req, themeManager, siteSettings, {
                     content: renderMarkdown(post.content, { wikilinks }),
                     metadata: post.frontmatter,
@@ -139,6 +159,13 @@ export function setupNotesRoutes(app, systems) {
                     fileType: "post",
                     contentRoute: true,
                     contentId: post.frontmatter.id,
+                    viewCount: analyticsStore
+                        ? analyticsStore.viewCountFor({
+                              id: post.frontmatter.id,
+                              slug: post.frontmatter.slug,
+                              path: `/notes/${post.frontmatter.slug}`,
+                          })
+                        : 0,
                     prevPost: post.prevPost || null,
                     nextPost: post.nextPost || null,
                     year: new Date().getFullYear(),
@@ -164,6 +191,13 @@ export function setupNotesRoutes(app, systems) {
                     getWikiRelated(contentManager, page.frontmatter.id, page.relatedPostsData),
                 ])
 
+                visitTracker?.markContent(res, {
+                    id: page.frontmatter.id,
+                    slug: page.frontmatter.slug,
+                    type: "page",
+                    title: page.frontmatter.title,
+                })
+
                 let templateData = await prepareTemplateData(req, themeManager, siteSettings, {
                     content: renderMarkdown(page.content, { wikilinks }),
                     metadata: page.frontmatter,
@@ -174,6 +208,13 @@ export function setupNotesRoutes(app, systems) {
                     contentRoute: true,
                     contentId: page.frontmatter.id,
                     isCustomPage,
+                    viewCount: analyticsStore
+                        ? analyticsStore.viewCountFor({
+                              id: page.frontmatter.id,
+                              slug: page.frontmatter.slug,
+                              path: `/notes/${page.frontmatter.slug}`,
+                          })
+                        : 0,
                     year: new Date().getFullYear(),
                 })
 

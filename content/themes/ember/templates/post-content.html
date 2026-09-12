@@ -9,6 +9,7 @@
                 {{#if metadata.publishDate}}{{metadata.publishDate | dateFormat('YYYY-MM-DD')}}{{#else}}{{metadata.createdAt | dateFormat('YYYY-MM-DD')}}{{/if}}
             </span>
             {{#if metadata.author}} · <span>{{metadata.author}}</span>{{/if}}
+            <span class="post-views" title="阅读次数"> · 👁 {{ viewCount || 0 }}</span>
             {{#if metadata.category}} · <a href="/category/{{metadata.category}}">{{metadata.category}}</a>{{/if}}
             {{#if metadata.tags}}
             · <span class="post-tags">{{#each metadata.tags}}<a href="/tag/{{this}}">#{{this}}</a> {{/each}}</span>

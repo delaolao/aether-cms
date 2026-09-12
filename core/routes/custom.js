@@ -5,7 +5,7 @@ import { resolveTemplatePath } from "../utils/template-utils.js"
 import { detectSearchTemplates, generateSearchIndex, isSearchTemplate } from "../utils/search-utils.js"
 
 export function setupCustomRoutes(app, systems) {
-    const { themeManager, contentManager, hookSystem, settingsService } = systems
+    const { themeManager, contentManager, hookSystem, settingsService, analyticsStore, visitTracker } = systems
 
     // Smart search detection and index generation
     // This runs once per request cycle and detects if search templates exist
@@ -204,6 +204,13 @@ export function setupCustomRoutes(app, systems) {
                 contentRoute: true,
                 contentId: contentPage.frontmatter.id,
                 isCustomPage: true,
+                viewCount: analyticsStore
+                    ? analyticsStore.viewCountFor({
+                          id: contentPage.frontmatter.id,
+                          slug: contentPage.frontmatter.slug,
+                          path: `/${contentPage.frontmatter.slug}`,
+                      })
+                    : 0,
                 // Add parent page data if it exists
                 parentPage: parentPage
                     ? {
@@ -239,6 +246,17 @@ export function setupCustomRoutes(app, systems) {
 
                 // Convert frontmatter to metadata for all posts
                 const paginatedPosts = contentManager.renameKey(pagination.data, "frontmatter", "metadata")
+
+                // Analytics: view counts on the paginated cards
+                if (analyticsStore) {
+                    for (const post of paginatedPosts) {
+                        post.metadata.viewCount = analyticsStore.viewCountFor({
+                            id: post.metadata.id,
+                            slug: post.metadata.slug,
+                            path: `/notes/${post.metadata.slug}`,
+                        })
+                    }
+                }
 
                 // Add pagination data to template with enhanced URLs
                 templateData.posts = paginatedPosts
@@ -363,6 +381,14 @@ export function setupCustomRoutes(app, systems) {
 
             // Prepare full template data with all the site context (menus, theme info, etc.)
             const fullTemplateData = await prepareTemplateData(req, themeManager, siteSettings, templateData)
+
+            // Analytics: attribute this visit to the custom page
+            visitTracker?.markContent(res, {
+                id: contentPage.frontmatter.id,
+                slug: contentPage.frontmatter.slug,
+                type: "page",
+                title: contentPage.frontmatter.title,
+            })
 
             // Process data through hooks
             const processedData = processTemplateData(hookSystem, fullTemplateData, `${customPath}.html`)

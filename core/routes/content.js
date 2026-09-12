@@ -4,7 +4,7 @@ import { prepareTemplateData, processTemplateData, handle404 } from "../utils/ro
 import { resolveTemplatePath } from "../utils/template-utils.js"
 
 export function setupContentRoutes(app, systems) {
-    const { themeManager, contentManager, hookSystem, settingsService } = systems
+    const { themeManager, contentManager, hookSystem, settingsService, analyticsStore, visitTracker } = systems
 
     // Handle post routes: /post/:slug
     app.get("/post/:slug", async (req, res) => {
@@ -43,10 +43,25 @@ export function setupContentRoutes(app, systems) {
                 fileType: "post",
                 contentRoute: true,
                 contentId: content.frontmatter.id,
+                // Analytics: attribute this visit to the post + expose its count
+                viewCount: analyticsStore
+                    ? analyticsStore.viewCountFor({
+                          id: content.frontmatter.id,
+                          slug: content.frontmatter.slug,
+                          path: `/notes/${content.frontmatter.slug}`,
+                      })
+                    : 0,
                 // Add navigation for posts
                 prevPost: content.prevPost || null,
                 nextPost: content.nextPost || null,
                 year: new Date().getFullYear(),
+            })
+
+            visitTracker?.markContent(res, {
+                id: content.frontmatter.id,
+                slug: content.frontmatter.slug,
+                type: "post",
+                title: content.frontmatter.title,
             })
 
             // Process data through hooks
@@ -112,7 +127,21 @@ export function setupContentRoutes(app, systems) {
                 contentRoute: true,
                 contentId: content.frontmatter.id,
                 isCustomPage: isCustomPage,
+                viewCount: analyticsStore
+                    ? analyticsStore.viewCountFor({
+                          id: content.frontmatter.id,
+                          slug: content.frontmatter.slug,
+                          path: `/notes/${content.frontmatter.slug}`,
+                      })
+                    : 0,
                 year: new Date().getFullYear(),
+            })
+
+            visitTracker?.markContent(res, {
+                id: content.frontmatter.id,
+                slug: content.frontmatter.slug,
+                type: "page",
+                title: content.frontmatter.title,
             })
 
             // Process data through hooks

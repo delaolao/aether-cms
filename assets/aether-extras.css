@@ -200,6 +200,8 @@
 }
 .graph-toolbar .graph-search { width: 260px; max-width: 100%; }
 .graph-toolbar .graph-type { width: 130px; max-width: 100%; }
+/* The view-count filter has longer option labels ("阅读 Top 10"). */
+.graph-toolbar #graph-views-filter { width: 168px; }
 .graph-toolbar button {
     padding: 0.4rem 0.9rem;
     border: 1px solid var(--aether-accent);
@@ -297,6 +299,41 @@
     font-size: 0.85rem;
     margin: 1rem 0 0;
     text-align: center;
+}
+
+/* --- Card media badges (视频 / 终端录制 / 附件) --- */
+.post-media-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    margin-left: 0.4em;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.media-badge {
+    display: inline-block;
+    font-size: 0.72em;
+    line-height: 1;
+    padding: 0.25em 0.35em;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    /* Keep the glyph crisp and prevent theme link colours from tinting it */
+    color: inherit;
+    text-decoration: none;
+    cursor: help;
+}
+.media-badge.video {
+    background: rgba(0, 102, 204, 0.1);
+    border-color: rgba(0, 102, 204, 0.25);
+}
+.media-badge.cast {
+    background: rgba(46, 125, 50, 0.1);
+    border-color: rgba(46, 125, 50, 0.25);
+}
+.media-badge.file {
+    background: rgba(255, 143, 63, 0.12);
+    border-color: rgba(255, 143, 63, 0.3);
 }
 
 /* --- Tag filter workbench (tag list pages, AND combination) --- */

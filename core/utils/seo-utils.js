@@ -1,4 +1,5 @@
 import { resolveTemplatePath } from "./template-utils.js"
+import { markdownToPlainText } from "../lib/content/utils/content-utils.js"
 
 /**
  * SEO utilities for generating RSS and sitemap files with intelligent sitemap detection
@@ -262,15 +263,14 @@ export async function generateRssXml({ posts, siteSettings, baseUrl, contentMana
             })
         }
 
-        // Generate description - use excerpt if available, or truncate content
-        let description = excerpt || ""
+        // Generate description - use excerpt if available, or truncate content.
+        // Both are sanitised so feed readers never see raw directives such as
+        // `[video:https://…|标题]` or `[[wikilinks]]`.
+        let description = markdownToPlainText(excerpt || "")
         if (!description && post.content) {
-            // Simple truncation for description (first 160 chars)
+            const plainContent = markdownToPlainText(post.content)
             description =
-                post.content
-                    .replace(/<[^>]*>/g, "") // Remove HTML tags
-                    .substring(0, 160)
-                    .trim() + "..."
+                plainContent.length > 160 ? plainContent.substring(0, 157).trim() + "..." : plainContent
         }
 
         // Properly encode entities in description

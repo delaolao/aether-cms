@@ -17,10 +17,13 @@ import { FileStorage } from "./lib/store/file-storage.js"
 import { AuthManager } from "./lib/auth/auth-manager.js"
 import { SettingsService } from "./lib/settings-service.js"
 import { GlobalMenuManager } from "./lib/global-menu-manager.js"
+import { AnalyticsStore } from "./lib/analytics/analytics-store.js"
+import { VisitTracker } from "./lib/analytics/visit-tracker.js"
 
 // Import utilities
 import { handle404, handle500 } from "./utils/route-utils.js"
 import { setupContentOptimizationHooks } from "./utils/hook-utils.js"
+import { join } from "node:path"
 
 // Global instances
 let themeManager
@@ -30,6 +33,15 @@ let fileStorage
 let authManager
 let settingsService
 let menuManager
+let analyticsStore
+let visitTracker
+
+/** Read a boolean-ish environment variable. */
+function envFlag(name, defaultValue) {
+    const raw = process.env[name]
+    if (raw === undefined || raw === "") return defaultValue
+    return /^(1|true|yes|on)$/i.test(String(raw).trim())
+}
 
 export async function setupApp(app, config) {
     // Enable cookie parser
@@ -50,6 +62,29 @@ export async function setupApp(app, config) {
     hookSystem = new HookSystem()
     fileStorage = new FileStorage(config.uploadsDir)
     authManager = new AuthManager(config.dataDir)
+
+    // Initialize the built-in analytics (self-hosted, file based). Only a
+    // masked client IP plus a salted hash is ever stored — see visit-tracker.js.
+    const analyticsEnabled = envFlag("ANALYTICS_ENABLED", true)
+    if (analyticsEnabled) {
+        analyticsStore = new AnalyticsStore({
+            dir: process.env.ANALYTICS_DIR || join(config.dataDir, "analytics"),
+            salt: process.env.ANALYTICS_SALT || "",
+            retentionDays: Number(process.env.ANALYTICS_RETENTION_DAYS || 180),
+        })
+        await analyticsStore.initialize()
+
+        visitTracker = new VisitTracker({
+            store: analyticsStore,
+            trustProxy: envFlag("ANALYTICS_TRUST_PROXY", false),
+            excludeAdmins: envFlag("ANALYTICS_EXCLUDE_ADMINS", true),
+            dedupWindowMs: Number(process.env.ANALYTICS_DEDUP_MINUTES || 30) * 60 * 1000,
+            authManager,
+            signedCookies,
+        })
+    } else {
+        console.log("[aether] analytics disabled (ANALYTICS_ENABLED=false)")
+    }
 
     // Initialize settings service first
     settingsService = new SettingsService(config.dataDir)
@@ -178,6 +213,21 @@ export async function setupApp(app, config) {
 
         const originalRender = res.render.bind(res)
         res.render = async (template, data) => {
+            // Page-level view counter: routes that resolve a content item pass
+            // their own `viewCount` (id-based). For every other frontend page
+            // (tag cloud, knowledge graph, taxonomy, custom page …) fall back to
+            // the count recorded for this request path, so the template's
+            // `{{ viewCount }}` shows the real number instead of a hard 0.
+            if (data && data.viewCount === undefined && analyticsStore) {
+                let path = String(req.url || "").split("?")[0]
+                try {
+                    path = decodeURIComponent(path)
+                } catch {
+                    /* keep raw */
+                }
+                data.viewCount = analyticsStore.viewCountFor({ path })
+            }
+
             let html = ""
             const originalEnd = res.end.bind(res)
             res.end = (chunk) => {
@@ -203,6 +253,12 @@ export async function setupApp(app, config) {
 
     // Apply edit permissions middleware globally
     app.use(editPermissionsMiddleware)
+
+    // Analytics collection: records one event per frontend HTML page view
+    // (bots and — by default — logged-in users are skipped).
+    if (visitTracker) {
+        app.use(visitTracker.middleware())
+    }
 
     // Set up API optimization hooks for content endpoints
     // This enables query params like:
@@ -241,6 +297,8 @@ export async function setupApp(app, config) {
         menuManager,
         authenticate,
         signedCookies,
+        analyticsStore,
+        visitTracker,
     }
 
     // Set up frontend routes (home, content, taxonomy, custom)
@@ -278,6 +336,23 @@ export async function setupApp(app, config) {
             await handle500(res, req, themeManager, settingsService)
         }
     })
+
+    // Persist aggregated analytics on shutdown (the hot path flushes lazily).
+    const flushAnalytics = () => {
+        try {
+            analyticsStore?.flushSync?.()
+        } catch {
+            /* ignore */
+        }
+    }
+    process.once("SIGINT", () => {
+        flushAnalytics()
+        process.exit(0)
+    })
+    process.once("SIGTERM", () => {
+        flushAnalytics()
+        process.exit(0)
+    })
 }
 
 // Export utility to get core systems (for plugins in the future)
@@ -297,6 +372,8 @@ export function getCoreSystem(name) {
             return settingsService
         case "menu":
             return menuManager
+        case "analytics":
+            return { store: analyticsStore, tracker: visitTracker }
         default:
             return null
     }

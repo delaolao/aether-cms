@@ -12,6 +12,8 @@
 
 ### 内容编辑与发布
 - 后台编辑器（`/aether`）：标题/副标题/正文 + Markdown 实时预览
+- **列表缩略内容智能清洗**：文章以 `[video:…|标题]` 等扩展语法开头时，卡片摘要自动提取可读文字（保留视频标题、丢弃 URL 与指令），而不是显示原始 Markdown
+- **卡片媒体角标**：列表卡片标题后显示 🎬 含视频 / ⌨️ 含终端录制 / 📎 含附件，便于快速识别内容形态
 - 工具栏一键插入：**图片**（媒体库选择）、**视频嵌入**（YouTube / Vimeo / 本地 / asciinema）、**原始 HTML/iframe**、**Wiki 链接**、**Callout**
 - 输入 `[[` 自动联想已发布文章（Obsidian 式补全）
 - 媒体库：图片/文档上传、删除、元信息编辑
@@ -36,6 +38,19 @@
 ### 界面与多语言
 - 后台**中英文界面切换**（设置 → 界面语言），语言包可扩展
 - 登录、侧边栏、仪表盘、内容列表、媒体库、主题、用户、设置页等均支持 i18n
+
+### 访问统计（自建 first-party，无第三方脚本）
+- 前台文章/页面显示**阅读次数**（文章页、首页/分类/标签列表卡片、自定义列表页均显示）
+- **知识图谱按节点显示阅读量**：`/notes/graph` 与后台 `/aether/graph` 的节点卡片显示 `👁 N`，页首统计含总阅读数
+- **图谱热度可视化与筛选**：节点卡片大小/描边/暖色底随阅读量递增（对数缩放，热门节点更醒目、≥100 次转橙），画布右下角显示图例；工具栏新增「全部阅读量 / 阅读 Top 5/10/20 / 有阅读 / 未被阅读」筛选
+- 后台 **`/aether/analytics`**：总览 PV/UV、日均、累计；PV/UV **趋势图**（零依赖 canvas）；**文章访问排行**（Top 20 + 完整 CSV 导出）；**访问终端**（设备 / 系统 / 浏览器）；**外部来源站点**；**最近访问明细**（时间 / 页面 / 掩码 IP / 终端）
+- 非文章页面显示**可读名称**而非编码路径：`首页`、`标签：小学`、`标签筛选：小学 × 数学`、`分类：技术`、`知识图谱`、`标签云`，且均可点击跳转
+- 存储为**纯文件**，无数据库：`content/data/analytics/views-YYYY-MM-DD.jsonl`（明细）+ `summary.json`（汇总）
+- **隐私友好**：只记录**掩码 IP**（IPv4 保留前三段、IPv6 保留前 3 组）与**加盐哈希**，不保存完整 IP；原始明细按保留期自动清理
+- 自动过滤爬虫/机器人；默认**不统计已登录用户**（避免作者自己浏览污染数据）；同一访客对同一页面 30 分钟内只计一次
+- 相关 `.env` 配置：`ANALYTICS_ENABLED`、`ANALYTICS_DIR`、`ANALYTICS_SALT`、`ANALYTICS_RETENTION_DAYS`、`ANALYTICS_TRUST_PROXY`、`ANALYTICS_EXCLUDE_ADMINS`、`ANALYTICS_DEDUP_MINUTES`
+- ⚠️ 部署在 nginx/CDN 之后时，需设 `ANALYTICS_TRUST_PROXY=true` 才能取到真实访客 IP（只在反代后开启，否则 IP 可被伪造）
+- ⚠️ `npm run build` 静态导出页无法回写统计，阅读计数仅在动态模式可用
 
 ### 主题无关的增强样式
 - 扩展样式集中在 `/assets/aether-extras.css`，由全局钩子注入每个前台页面
@@ -95,6 +110,8 @@ npm run build -- --output dist
 
 ```
 core/lib/markdown/          Obsidian 渲染器（marked 扩展）与关系引擎
+core/lib/analytics/         访问统计（UA 解析、JSONL+汇总存储、采集中间件）
+core/utils/analytics-utils.js 统计聚合、趋势/排行/分布计算与 CSV 导出
 core/routes/notes.js        /notes/graph 与 /notes/:slug 统一内容路由
 core/admin/                 后台界面（编辑器、媒体库、主题、用户、i18n）
 core/app.js                 全局钩子（charset、主题无关样式注入）

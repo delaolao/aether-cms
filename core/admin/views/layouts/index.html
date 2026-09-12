@@ -49,6 +49,10 @@
                 <!-- Tag Cloud Content -->
                 {{#include("contents/tag-cloud.html")}}
                 <!---->
+                {{#elseif dashboardAnalytics}}
+                <!-- Analytics Content -->
+                {{#include("contents/analytics.html")}}
+                <!---->
                 {{/if}}
             </main>
         </div>
@@ -110,6 +114,8 @@
         <script src="/content/themes/default/assets/js/knowledge-graph.js"></script>
         {{#elseif dashboardTagCloud}}
         <script src="/assets/tag-cloud.js"></script>
+        {{#elseif dashboardAnalytics}}
+        <script src="/core/admin/static/js/analytics.js"></script>
         {{/if}}
     </body>
 </html>

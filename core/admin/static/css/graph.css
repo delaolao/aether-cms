@@ -26,6 +26,10 @@
     width: 130px;
     max-width: 100%;
 }
+/* The view-count filter has longer option labels ("阅读 Top 10"). */
+.graph-toolbar #graph-views-filter {
+    width: 168px;
+}
 
 .graph-hint {
     font-size: 0.85rem;

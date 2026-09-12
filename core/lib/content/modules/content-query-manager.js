@@ -10,6 +10,7 @@ import {
     applyPagination,
     addPostReferences,
     truncateExcerpt,
+    markdownToPlainText,
     transformContentItems,
 } from "../utils/content-utils.js"
 
@@ -197,7 +198,7 @@ export class ContentQueryManager {
                                 slug: relatedPost.frontmatter.slug,
                                 featuredImage: relatedPost.frontmatter.featuredImage,
                                 excerpt: relatedPost.frontmatter.excerpt
-                                    ? truncateExcerpt(relatedPost.frontmatter.excerpt, 120)
+                                    ? truncateExcerpt(markdownToPlainText(relatedPost.frontmatter.excerpt), 120)
                                     : null,
                             }
                         } catch (err) {
@@ -330,7 +331,7 @@ export class ContentQueryManager {
                                         slug: relatedFrontmatter.slug,
                                         featuredImage: relatedFrontmatter.featuredImage,
                                         excerpt: relatedFrontmatter.excerpt
-                                            ? truncateExcerpt(relatedFrontmatter.excerpt, 120)
+                                            ? truncateExcerpt(markdownToPlainText(relatedFrontmatter.excerpt), 120)
                                             : null,
                                     }
                                 } catch (err) {

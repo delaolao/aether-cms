@@ -4,6 +4,7 @@
 import { join } from "node:path"
 import { existsSync } from "node:fs"
 import { ensureDirectory, writeJsonFile } from "../lib/theme/utils/file-utils.js"
+import { markdownToPlainText } from "../lib/content/utils/content-utils.js"
 
 /**
  * Detects search templates in the active theme
@@ -79,8 +80,8 @@ function transformPostsForSearch(posts) {
             id: metadata.id,
             title: metadata.title || "Untitled Post",
             path: `/post/${metadata.slug}`,
-            content: metadata.excerpt || metadata.seoDescription || "",
-            excerpt: metadata.excerpt || "",
+            content: markdownToPlainText(metadata.excerpt || metadata.seoDescription || ""),
+            excerpt: markdownToPlainText(metadata.excerpt || ""),
             type: "post",
             category: metadata.category || null,
             tags: Array.isArray(metadata.tags)
@@ -106,8 +107,8 @@ function transformPagesForSearch(pages) {
             id: frontmatter.id,
             title: frontmatter.title || "Untitled Page",
             path: buildPagePath(page, pages),
-            content: frontmatter.excerpt || frontmatter.seoDescription || "",
-            excerpt: frontmatter.excerpt || "",
+            content: markdownToPlainText(frontmatter.excerpt || frontmatter.seoDescription || ""),
+            excerpt: markdownToPlainText(frontmatter.excerpt || ""),
             type: "page",
             parentPage: frontmatter.parentPage || null,
             publishDate: frontmatter.publishDate || frontmatter.createdAt,

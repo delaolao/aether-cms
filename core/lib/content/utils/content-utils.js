@@ -171,6 +171,110 @@ export function truncateExcerpt(excerpt, maxLength = 120) {
 }
 
 /**
+ * Detect which media badges a piece of content should show on its card.
+ *
+ * Cards are a glanceable summary, so this only reports unmistakable signals:
+ * a video embed (`[video:…]`, raw `<video>` / `<iframe>`), an asciinema cast
+ * (`[asciinema:…]`) or a file attachment (`[file:…]`).
+ *
+ * @param {string} content - Raw Markdown of the item
+ * @returns {Array<{type: string, icon: string, label: string}>}
+ */
+export function detectMediaBadges(content) {
+    if (!content || typeof content !== "string") return []
+
+    const badges = []
+    if (/\[video:/i.test(content) || /<video[\s>]/i.test(content) || /<iframe[\s>]/i.test(content)) {
+        badges.push({ type: "video", icon: "🎬", label: "含视频" })
+    }
+    if (/\[asciinema:/i.test(content)) {
+        badges.push({ type: "cast", icon: "⌨️", label: "含终端录制" })
+    }
+    if (/\[file:/i.test(content)) {
+        badges.push({ type: "file", icon: "📎", label: "含附件" })
+    }
+    return badges
+}
+
+/**
+ * Convert Markdown (including this project's Obsidian-style extensions) into
+ * plain prose, for excerpts / summaries / meta descriptions / search indexes.
+ *
+ * Standard Markdown alone is not enough here: an article often OPENS with an
+ * embed such as `[video:https://…|标题]`, and a naive strip would leak the raw
+ * directive (and its URL) into list previews. Rules:
+ *
+ *   [video:URL|Caption]      → Caption        (URL dropped)
+ *   [asciinema:id|Caption]   → Caption
+ *   [file:path|Name]         → Name (or basename)
+ *   [ref:key]                → dropped
+ *   [[Note|Label]]           → Label
+ *   ![[image.png]]           → dropped,  ![[Note]] → Label
+ *   $$…$$ / $…$              → dropped / inner expression
+ *   > [!TYPE] Title          → Title
+ *   #标签                     → 标签
+ *   code fences / tables / lists / HTML / images → dropped or unwrapped
+ *
+ * @param {string} markdown
+ * @returns {string} Plain single-line text
+ */
+export function markdownToPlainText(markdown) {
+    if (!markdown || typeof markdown !== "string") return ""
+
+    return (
+        markdown
+            // Fenced code blocks — no prose value
+            .replace(/```[\s\S]*?```/g, " ")
+            // Obsidian embeds: images are dropped, note embeds keep their label
+            .replace(/!\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (match, target, label) =>
+                /\.(png|jpe?g|gif|svg|webp|avif|bmp)$/i.test(String(target).trim()) ? " " : label || target
+            )
+            // Wikilinks: [[Target#Anchor|Label]] → Label
+            .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (match, target, label) => label || target)
+            // Media / attachment directives — keep the human-readable caption
+            .replace(/\[video:([^\]|]+)(?:\|([^\]]+))?\]/g, (match, url, caption) => caption || " ")
+            .replace(/\[asciinema:([^\]|]+)(?:\|([^\]]+))?\]/g, (match, id, caption) => caption || " ")
+            .replace(/\[file:([^\]|]+)(?:\|([^\]]+))?\]/g, (match, path, name) => {
+                const fallback = String(path).split("/").pop() || ""
+                return name || fallback || " "
+            })
+            .replace(/\[ref:[^\]]+\]/g, " ")
+            // Math
+            .replace(/\$\$[\s\S]*?\$\$/g, " ")
+            .replace(/\$([^$\n]+)\$/g, "$1")
+            // Images then links
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+            .replace(/\[([^\]]+)\]\[[^\]]*\]/g, "$1")
+            .replace(/^\s*\[[^\]]+\]:\s*\S+.*$/gm, " ")
+            // Callouts: "> [!INFO] Title" → "Title"
+            .replace(/^>\s*\[!(\w+)\]\s*(.*)$/gm, "$2")
+            // Headings / blockquote markers / list markers / rules
+            .replace(/#{1,6}\s+/g, "")
+            .replace(/^>\s?/gm, "")
+            .replace(/^\s*([-*_]\s*){3,}$/gm, " ")
+            .replace(/^\s*[-*+]\s+/gm, "")
+            .replace(/^\s*\d+\.\s+/gm, "")
+            // Table rows
+            .replace(/^\s*\|.*\|\s*$/gm, " ")
+            // Emphasis + inline code (keep the text)
+            .replace(/\*\*([^*]+)\*\*/g, "$1")
+            .replace(/\*([^*]+)\*/g, "$1")
+            .replace(/~~([^~]+)~~/g, "$1")
+            .replace(/_([^_]+)_/g, "$1")
+            .replace(/`{1,3}([^`]*)`{1,3}/g, "$1")
+            // Hashtags → plain words
+            .replace(/(^|\s)#([A-Za-z\u4e00-\u9fa5][\w\u4e00-\u9fa5.\-]*)/g, "$1$2")
+            // Raw HTML
+            .replace(/<[^>]*>/g, " ")
+            // Collapse whitespace into a single line
+            .replace(/[ \t]+/g, " ")
+            .replace(/\s*\n\s*/g, " ")
+            .trim()
+    )
+}
+
+/**
  * Transforms a list of content items based on view options
  * @param {Array<Object>} contentItems - Array of content items to transform
  * @param {Object} options - Transformation options
@@ -189,21 +293,20 @@ export function transformContentItems(contentItems, options = {}) {
             // Create frontmatter with excerpt if needed
             const frontmatter = { ...item.frontmatter } || {}
 
+            // Sanitise an authored excerpt too: legacy excerpts (and ones pasted
+            // from content) may still contain raw directives such as
+            // `[video:https://…|标题]`, which would show up verbatim in cards.
+            if (frontmatter.excerpt) {
+                frontmatter.excerpt = markdownToPlainText(frontmatter.excerpt)
+            }
+
+            // Card media badges (video / terminal cast / attachment)
+            frontmatter.mediaIcons = detectMediaBadges(item.content)
+
             // Generate preview from content if needed
             let contentPreview = ""
             if (item.content) {
-                // Strip markdown syntax
-                const plainText = item.content
-                    .replace(/#+\s+/g, "") // Remove headings
-                    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // Replace links with just text
-                    .replace(/\*\*([^*]+)\*\*/g, "$1") // Remove bold but keep content
-                    .replace(/\*([^*]+)\*/g, "$1") // Remove italic (asterisks) but keep content
-                    .replace(/~~([^~]+)~~/g, "$1") // Remove strikethrough but keep content
-                    .replace(/\_([^_]+)\_/g, "$1") // Remove italic (underscores) but keep content
-                    .replace(/`{1,3}[^`]*`{1,3}/g, "") // Remove code blocks entirely
-                    .replace(/>\s+(.*)/g, "$1") // Remove blockquote markers but keep content
-                    .replace(/\|.*\|/g, "") // Remove table rows
-                    .trim()
+                const plainText = markdownToPlainText(item.content)
 
                 contentPreview =
                     plainText.length > previewLength ? plainText.substring(0, previewLength - 3) + "..." : plainText

@@ -1,0 +1,182 @@
+<div class="dashboard analytics-dashboard">
+    <div class="analytics-header">
+        <h1 data-i18n="analytics_title">访问统计</h1>
+        <div class="analytics-range">
+            <span class="range-label" data-i18n="analytics_range">时间范围</span>
+            {{#each ranges}}
+            <a class="range-chip {{#if active}}active{{/if}}" href="{{ href }}">{{ label }}</a>
+            {{/each}}
+            <a class="analytics-export" href="{{ exportUrl }}" data-i18n="analytics_export">导出 CSV</a>
+        </div>
+    </div>
+
+    <p class="analytics-note">
+        {{ report.range.label }} · 数据存于本站
+        <code>content/data/analytics/</code>（仅记录掩码 IP 与加盐哈希，不保存完整 IP）
+    </p>
+
+    <div class="stat-cards">
+        <div class="stat-card">
+            <div class="stat-value">{{ report.totals.pv }}</div>
+            <div class="stat-label" data-i18n="analytics_pv">浏览量 (PV)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.totals.uv }}</div>
+            <div class="stat-label" data-i18n="analytics_uv">独立访客 (UV)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.totals.contentCount }}</div>
+            <div class="stat-label" data-i18n="analytics_articles">被访问内容数</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.totals.avgPerDay }}</div>
+            <div class="stat-label" data-i18n="analytics_avg">日均浏览</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.totals.allTimePv }}</div>
+            <div class="stat-label" data-i18n="analytics_allTime">累计浏览</div>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <h2 data-i18n="analytics_trend">访问趋势（PV / UV）</h2>
+        <canvas id="analytics-trend" height="220"></canvas>
+        <div class="trend-legend">
+            <span class="legend-pv">PV</span>
+            <span class="legend-uv">UV</span>
+        </div>
+        <script type="application/json" id="analytics-data">{{ analyticsJson }}</script>
+    </div>
+
+    <div class="analytics-grid">
+        <div class="info-card">
+            <h2 data-i18n="analytics_topContent">文章访问排行</h2>
+            {{#if ranking.length}}
+            <table class="analytics-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th data-i18n="analytics_colTitle">标题</th>
+                        <th data-i18n="analytics_colType">类型</th>
+                        <th data-i18n="analytics_colPv">浏览</th>
+                        <th data-i18n="analytics_colShare">占比</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each ranking}}
+                    <tr>
+                        <td class="rank">{{ rank }}</td>
+                        <td class="title-cell">
+                            {{#if url}}
+                            <a href="{{ url }}" target="_blank" rel="noopener">{{ title }}</a>
+                            {{#else}}
+                            {{ title }}
+                            {{/if}}
+                        </td>
+                        <td>{{ type }}</td>
+                        <td class="num">{{ pv }}</td>
+                        <td class="num">{{ share }}%</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+            {{#if report.topContent.length}}
+            <p class="table-hint">仅显示前 {{ rankingLimit }} 条，完整清单请导出 CSV（共 {{ report.topContent.length }} 条）。</p>
+            {{/if}}
+            {{#else}}
+            <p class="empty-hint" data-i18n="analytics_empty">该时间段暂无访问数据。</p>
+            {{/if}}
+        </div>
+
+        <div class="info-card">
+            <h2 data-i18n="analytics_clients">访问终端</h2>
+            {{#if report.devices.length}}
+            <h3 data-i18n="analytics_device">设备</h3>
+            <ul class="dist-list">
+                {{#each report.devices}}
+                <li>
+                    <span class="dist-name">{{ name }}</span>
+                    <span class="dist-bar"><span class="dist-fill" style="width: {{ pct }}%"></span></span>
+                    <span class="dist-value">{{ count }} · {{ pct }}%</span>
+                </li>
+                {{/each}}
+            </ul>
+            <h3 data-i18n="analytics_os">操作系统</h3>
+            <ul class="dist-list">
+                {{#each report.os}}
+                <li>
+                    <span class="dist-name">{{ name }}</span>
+                    <span class="dist-bar"><span class="dist-fill" style="width: {{ pct }}%"></span></span>
+                    <span class="dist-value">{{ count }} · {{ pct }}%</span>
+                </li>
+                {{/each}}
+            </ul>
+            <h3 data-i18n="analytics_browser">浏览器</h3>
+            <ul class="dist-list">
+                {{#each report.browsers}}
+                <li>
+                    <span class="dist-name">{{ name }}</span>
+                    <span class="dist-bar"><span class="dist-fill" style="width: {{ pct }}%"></span></span>
+                    <span class="dist-value">{{ count }} · {{ pct }}%</span>
+                </li>
+                {{/each}}
+            </ul>
+            {{#else}}
+            <p class="empty-hint" data-i18n="analytics_empty">该时间段暂无访问数据。</p>
+            {{/if}}
+        </div>
+    </div>
+
+    <div class="analytics-grid">
+        <div class="info-card">
+            <h2 data-i18n="analytics_referrers">来源站点</h2>
+            {{#if report.referrers.length}}
+            <ul class="dist-list">
+                {{#each report.referrers}}
+                <li>
+                    <span class="dist-name">{{ name }}</span>
+                    <span class="dist-bar"><span class="dist-fill" style="width: {{ pct }}%"></span></span>
+                    <span class="dist-value">{{ count }} · {{ pct }}%</span>
+                </li>
+                {{/each}}
+            </ul>
+            {{#else}}
+            <p class="empty-hint">暂无外部来源（直接访问或站内跳转不计数）。</p>
+            {{/if}}
+        </div>
+
+        <div class="info-card">
+            <h2 data-i18n="analytics_recent">最近访问</h2>
+            {{#if report.recent.length}}
+            <table class="analytics-table recent-table">
+                <thead>
+                    <tr>
+                        <th data-i18n="analytics_colTime">时间</th>
+                        <th data-i18n="analytics_colPage">页面</th>
+                        <th>IP</th>
+                        <th data-i18n="analytics_colClient">终端</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each report.recent}}
+                    <tr>
+                        <td class="nowrap">{{ time }}</td>
+                        <td class="title-cell">
+                            {{#if url}}
+                            <a href="{{ url }}" target="_blank" rel="noopener">{{ title }}</a>
+                            {{#else}}
+                            {{ title }}
+                            {{/if}}
+                        </td>
+                        <td class="nowrap">{{ ip }}</td>
+                        <td class="nowrap">{{ device }} / {{ os }} / {{ browser }}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+            {{#else}}
+            <p class="empty-hint" data-i18n="analytics_empty">该时间段暂无访问数据。</p>
+            {{/if}}
+        </div>
+    </div>
+</div>

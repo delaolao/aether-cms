@@ -10,10 +10,11 @@
         <div class="post-grid">
             {{#each posts }}
             <article class="post-card">
-                <h3><a href="/post/{{ metadata.slug }}">{{ metadata.title }}</a></h3>
+                <h3><a href="/post/{{ metadata.slug }}">{{ metadata.title }}</a>{{#if metadata.mediaIcons.length}}<span class="post-media-badges">{{#each metadata.mediaIcons}}<span class="media-badge {{ type }}" title="{{ label }}">{{ icon }}</span>{{/each}}</span>{{/if}}</h3>
                 <div class="post-meta">
                     <span class="post-date">{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}</span>
                     <span class="post-author">By {{ metadata.author }}</span>
+                    <span class="post-views" title="阅读次数">👁 {{ metadata.viewCount || 0 }}</span>
                 </div>
                 <div class="post-excerpt">
                     {{#if metadata.subtitle}}

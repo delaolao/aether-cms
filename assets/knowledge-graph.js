@@ -49,6 +49,34 @@
     }))
     const links = payload.edges || []
 
+    // ------------------------------------------------------------------
+    // Heat (view-count) model
+    // ------------------------------------------------------------------
+    // `views` is injected by the server (analytics). The hottest node defines
+    // the top of the ramp; scaling is logarithmic so low-traffic notes still
+    // differ from each other instead of collapsing to one size.
+    const maxViews = nodes.reduce((max, n) => Math.max(max, Number(n.views || 0)), 0)
+
+    function nodeHeat(node) {
+        const views = Number(node?.views || 0)
+        if (maxViews <= 0 || views <= 0) return 0
+        return Math.log(1 + views) / Math.log(1 + maxViews) // 0..1
+    }
+
+    /** Nodes sorted by views (descending) — used by the Top-N filter. */
+    function nodesByViews() {
+        return nodes.slice().sort((a, b) => Number(b.views || 0) - Number(a.views || 0))
+    }
+
+    function sizeOf(node) {
+        const heat = nodeHeat(node)
+        return {
+            heat,
+            width: Math.round(NODE_WIDTH * (1 + HEAT_MAX_SCALE * heat)),
+            height: Math.round(NODE_HEIGHT * (1 + HEAT_MAX_SCALE * 0.55 * heat)),
+        }
+    }
+
     // Physics constants (from hblog-ng config/graph.ts)
     const REPULSION = 2000
     const FRICTION = 0.85
@@ -58,6 +86,7 @@
     // Visuals (all in logical/CSS pixels)
     const NODE_WIDTH = 150
     const NODE_HEIGHT = 62
+    const HEAT_MAX_SCALE = 0.34 // hottest node grows up to +34% (width) / +19% (height)
     const TYPE_COLORS = { post: "#0066cc", page: "#2e7d32" }
     const TYPE_LABELS = { post: "POST", page: "PAGE" }
     const BACKGROUND = "#ffffff"
@@ -92,11 +121,13 @@
     // ------------------------------------------------------------------
     const searchInput = document.getElementById("graph-search")
     const typeFilter = document.getElementById("graph-type-filter")
+    const viewsFilterEl = document.getElementById("graph-views-filter")
     const resetButton = document.getElementById("graph-reset")
 
     function applyFilters() {
         const query = (searchInput ? searchInput.value : "").trim().toLowerCase()
         const type = typeFilter ? typeFilter.value : ""
+        const viewsFilter = viewsFilterEl ? viewsFilterEl.value : ""
 
         const direct = new Set()
         const all = new Set()
@@ -114,8 +145,29 @@
             })
         }
 
+        // View-count filter: hides non-matching nodes entirely (Top N / read /
+        // unread) so the remaining graph re-settles on its own.
+        let viewsAllowed = null
+        if (viewsFilter === "read") {
+            viewsAllowed = new Set(nodes.filter((n) => Number(n.views || 0) > 0).map((n) => n.id))
+        } else if (viewsFilter === "unread") {
+            viewsAllowed = new Set(nodes.filter((n) => Number(n.views || 0) <= 0).map((n) => n.id))
+        } else if (viewsFilter.startsWith("top")) {
+            const limit = parseInt(viewsFilter.slice(3), 10)
+            if (limit > 0) {
+                viewsAllowed = new Set(
+                    nodesByViews()
+                        .slice(0, limit)
+                        .map((n) => n.id)
+                )
+            }
+        }
+
         nodes.forEach((n) => {
-            n.visible = (!type || n.type === type) && (!query || all.has(n.id))
+            n.visible =
+                (!type || n.type === type) &&
+                (!query || all.has(n.id)) &&
+                (!viewsAllowed || viewsAllowed.has(n.id))
             n.matched = query ? direct.has(n.id) : false
             n.neighbor = query ? all.has(n.id) && !direct.has(n.id) : false
         })
@@ -125,6 +177,7 @@
     function resetView() {
         if (searchInput) searchInput.value = ""
         if (typeFilter) typeFilter.value = ""
+        if (viewsFilterEl) viewsFilterEl.value = ""
         zoom = 1
         panX = 0
         panY = 0
@@ -135,6 +188,7 @@
 
     if (searchInput) searchInput.addEventListener("input", applyFilters)
     if (typeFilter) typeFilter.addEventListener("change", applyFilters)
+    if (viewsFilterEl) viewsFilterEl.addEventListener("change", applyFilters)
     if (resetButton) resetButton.addEventListener("click", resetView)
 
     // ------------------------------------------------------------------
@@ -195,7 +249,10 @@
                 const distSq = dx * dx + dy * dy
                 if (distSq > 0 && distSq < 640000) {
                     const dist = Math.sqrt(distSq)
-                    const force = REPULSION / distSq
+                    // Bigger (hotter) cards push harder, so the heat scaling does
+                    // not make them overlap each other.
+                    const heatBoost = 1 + 0.9 * Math.max(nodeHeat(node), nodeHeat(other))
+                    const force = (REPULSION * heatBoost) / distSq
                     const fx = (dx / dist) * force
                     const fy = (dy / dist) * force
                     node.vx += fx
@@ -250,7 +307,10 @@
         ctx.translate(-width / 2, -height / 2)
 
         const nodeById = new Map(nodes.map((n) => [n.id, n]))
-        const hasFilter = (searchInput && searchInput.value.trim()) || (typeFilter && typeFilter.value)
+        const hasFilter =
+            (searchInput && searchInput.value.trim()) ||
+            (typeFilter && typeFilter.value) ||
+            (viewsFilterEl && viewsFilterEl.value)
 
         // Links
         for (const link of links) {
@@ -284,10 +344,13 @@
             if (hasFilter && !node.matched && !node.neighbor) opacity = 0.15
             ctx.globalAlpha = opacity
 
-            node.width = NODE_WIDTH
-            node.height = NODE_HEIGHT
-            const nX = node.x - NODE_WIDTH / 2
-            const nY = node.y - NODE_HEIGHT / 2
+            // Heat: card size, border weight and warmth all scale with views.
+            const { heat, width: cardW, height: cardH } = sizeOf(node)
+            node.width = cardW
+            node.height = cardH
+            node.heat = heat
+            const nX = node.x - cardW / 2
+            const nY = node.y - cardH / 2
             const color = TYPE_COLORS[node.type] || "#6b7280"
 
             if (node.matched) {
@@ -297,15 +360,20 @@
                 ctx.shadowColor = ACTIVE_COLOR
             } else if (isHovered) {
                 ctx.strokeStyle = "#ff5252"
-                ctx.lineWidth = 1.5
+                ctx.lineWidth = 1.5 + 1.5 * heat
             } else {
-                ctx.strokeStyle = color
-                ctx.lineWidth = 1.5
+                ctx.strokeStyle = heat >= 0.5 ? "#e07a1f" : color
+                ctx.lineWidth = 1.5 + 2 * heat
+                if (heat >= 0.6) {
+                    ctx.shadowBlur = 8 * heat
+                    ctx.shadowColor = "rgba(224, 122, 31, 0.45)"
+                }
             }
 
-            ctx.fillStyle = "#ffffff"
+            // Hotter cards get a warm tint so the ranking is readable at a glance.
+            ctx.fillStyle = heat >= 0.7 ? "#fff7ed" : heat >= 0.4 ? "#fffdf8" : "#ffffff"
             ctx.beginPath()
-            ctx.roundRect(nX, nY, NODE_WIDTH, NODE_HEIGHT, 6)
+            ctx.roundRect(nX, nY, cardW, cardH, 6)
             ctx.fill()
             ctx.stroke()
             ctx.shadowBlur = 0
@@ -332,8 +400,20 @@
             if (node.category) {
                 ctx.fillStyle = "#9ca3af"
                 ctx.font = "10px system-ui, sans-serif"
-                ctx.fillText(node.category, nX + 10, nY + NODE_HEIGHT - 8)
+                ctx.fillText(node.category, nX + 10, nY + cardH - 8)
             }
+
+            // View count (analytics) — right-aligned on the badge line, shown
+            // only when the node has been read at least once.
+            const views = Number(node.views || 0)
+            if (views > 0) {
+                ctx.font = "10px system-ui, sans-serif"
+                ctx.fillStyle = views >= 100 ? "#c2410c" : "#6b7280"
+                const viewsLabel = `👁 ${views}`
+                const viewsWidth = ctx.measureText(viewsLabel).width
+                ctx.fillText(viewsLabel, nX + cardW - 10 - viewsWidth, nY + 44)
+            }
+
             ctx.globalAlpha = 1
         }
 
@@ -346,6 +426,15 @@
             ctx.fillStyle = "#6b7280"
             ctx.font = "12px system-ui, sans-serif"
             ctx.fillText(`显示 ${visibleCount} / ${nodes.length} 个节点`, 12, height - 12)
+        }
+
+        // Heat legend — only meaningful when the graph carries view counts.
+        if (maxViews > 0) {
+            ctx.font = "11px system-ui, sans-serif"
+            ctx.fillStyle = "#98a2b3"
+            const legend = `节点大小/描边 ∝ 阅读量（最高 ${maxViews}）`
+            const legendWidth = ctx.measureText(legend).width
+            ctx.fillText(legend, width - 12 - legendWidth, height - 12)
         }
     }
 
@@ -372,7 +461,9 @@
         for (let i = nodes.length - 1; i >= 0; i--) {
             const n = nodes[i]
             if (!n.visible) continue
-            if (Math.abs(n.x - x) <= NODE_WIDTH / 2 && Math.abs(n.y - y) <= NODE_HEIGHT / 2) return n
+            const w = n.width || NODE_WIDTH
+            const h = n.height || NODE_HEIGHT
+            if (Math.abs(n.x - x) <= w / 2 && Math.abs(n.y - y) <= h / 2) return n
         }
         return null
     }
@@ -392,10 +483,12 @@
         let minY = Infinity
         let maxY = -Infinity
         for (const n of list) {
-            minX = Math.min(minX, n.x - NODE_WIDTH / 2)
-            maxX = Math.max(maxX, n.x + NODE_WIDTH / 2)
-            minY = Math.min(minY, n.y - NODE_HEIGHT / 2)
-            maxY = Math.max(maxY, n.y + NODE_HEIGHT / 2)
+            const w = (n.width || NODE_WIDTH) / 2
+            const h = (n.height || NODE_HEIGHT) / 2
+            minX = Math.min(minX, n.x - w)
+            maxX = Math.max(maxX, n.x + w)
+            minY = Math.min(minY, n.y - h)
+            maxY = Math.max(maxY, n.y + h)
         }
 
         const margin = 100

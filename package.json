@@ -1,6 +1,6 @@
 {
   "name": "aether-cms",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A modern, file-based Markdown CMS with an Obsidian-style knowledge graph — an enhanced integration of aether-cms + hblog-ng.",
   "main": "index.js",
   "type": "module",

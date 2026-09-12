@@ -2,7 +2,7 @@ import { prepareTemplateData, processTemplateData } from "../utils/route-utils.j
 import { resolveTemplatePath, checkCustomTemplate } from "../utils/template-utils.js"
 
 export function setupHomeRoutes(app, systems) {
-    const { themeManager, contentManager, hookSystem } = systems
+    const { themeManager, contentManager, hookSystem, analyticsStore } = systems
 
     // Handle the homepage route
     app.get("/", async (req, res) => {
@@ -19,6 +19,17 @@ export function setupHomeRoutes(app, systems) {
             })
 
             const posts = contentManager.renameKey(allPosts, "frontmatter", "metadata")
+
+            // Attach view counts to the post cards (analytics module)
+            if (analyticsStore) {
+                for (const post of posts) {
+                    post.metadata.viewCount = analyticsStore.viewCountFor({
+                        id: post.metadata.id,
+                        slug: post.metadata.slug,
+                        path: `/notes/${post.metadata.slug}`,
+                    })
+                }
+            }
 
             // Prepare template data
             const templateData = await prepareTemplateData(req, themeManager, siteSettings, {

@@ -217,7 +217,7 @@ function buildTagWorkbenchHtml({ activeTags, facets, hiddenCount, showAll, slugs
  * Used by both GET /tag/:slug and GET /tags/:slug1/:slug2/…
  */
 async function renderTagCombination(app, req, res, systems, rawSlugs) {
-    const { themeManager, contentManager, hookSystem, settingsService } = systems
+    const { themeManager, contentManager, hookSystem, settingsService, analyticsStore } = systems
 
     try {
         const slugs = normalizeSlugs(rawSlugs)
@@ -266,6 +266,17 @@ async function renderTagCombination(app, req, res, systems, rawSlugs) {
 
         // Card chips (page-scoped)
         attachCardTagChips(paginatedPosts, byNameLower, bySlug, slugs, facetCounts)
+
+        // Analytics: view counts on the result cards
+        if (analyticsStore) {
+            for (const post of paginatedPosts) {
+                post.metadata.viewCount = analyticsStore.viewCountFor({
+                    id: post.metadata.id,
+                    slug: post.metadata.slug,
+                    path: `/notes/${post.metadata.slug}`,
+                })
+            }
+        }
 
         const displayTerm = activeTags.map((t) => t.name).join(" × ")
 
@@ -344,7 +355,7 @@ async function renderTagCombination(app, req, res, systems, rawSlugs) {
 }
 
 export function setupTaxonomyRoutes(app, systems) {
-    const { themeManager, contentManager, hookSystem, settingsService } = systems
+    const { themeManager, contentManager, hookSystem, settingsService, analyticsStore } = systems
 
     // Handle category routes: /category/:slug
     app.get("/category/:slug", async (req, res) => {
@@ -378,6 +389,17 @@ export function setupTaxonomyRoutes(app, systems) {
 
             // Convert frontmatter to metadata for all posts
             const paginatedPosts = contentManager.renameKey(pagination.data, "frontmatter", "metadata")
+
+            // Analytics: view counts on the result cards
+            if (analyticsStore) {
+                for (const post of paginatedPosts) {
+                    post.metadata.viewCount = analyticsStore.viewCountFor({
+                        id: post.metadata.id,
+                        slug: post.metadata.slug,
+                        path: `/notes/${post.metadata.slug}`,
+                    })
+                }
+            }
 
             // Build base template data
             let templateData = await prepareTemplateData(req, themeManager, siteSettings, {

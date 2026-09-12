@@ -4,7 +4,8 @@
  * @param {Object} options - Configuration options
  */
 export function setupAdminRoutes(app, systems) {
-    const { themeManager, contentManager, authManager, signedCookies, settingsService, authenticate } = systems
+    const { themeManager, contentManager, authManager, signedCookies, settingsService, authenticate, analyticsStore } =
+        systems
 
     // Login page
     app.get("/aether/login", async (req, res) => {
@@ -330,7 +331,7 @@ export function setupAdminRoutes(app, systems) {
     app.get("/aether/graph", authenticate, async (req, res) => {
         try {
             const { getGraphPayload } = await import("../lib/markdown/wiki-relations.js")
-            const payload = await getGraphPayload(contentManager)
+            const payload = await getGraphPayload(contentManager, { analyticsStore })
             const graphJson = JSON.stringify(payload).replace(/</g, "\\u003c")
 
             res.render("/core/admin/views/layouts/index.html", {
@@ -363,6 +364,71 @@ export function setupAdminRoutes(app, systems) {
         } catch (error) {
             console.error("Tag cloud page error:", error)
             res.status(500).html("<h1>Error</h1><p>Could not load tag cloud</p>")
+        }
+    })
+
+    // ------------------------------------------------------------------
+    // Analytics dashboard (self-hosted first-party statistics)
+    // ------------------------------------------------------------------
+    app.get("/aether/analytics", authenticate, async (req, res) => {
+        try {
+            if (!analyticsStore) {
+                return res
+                    .status(503)
+                    .html("<h1>Analytics disabled</h1><p>Set ANALYTICS_ENABLED=true and restart the server.</p>")
+            }
+
+            const { buildAnalyticsReport, RANGE_OPTIONS } = await import("../utils/analytics-utils.js")
+
+            const requested = parseInt(req.queryParams?.get("range") || "7")
+            const rangeDays = RANGE_OPTIONS.some((o) => o.value === requested) ? requested : 7
+
+            const report = await buildAnalyticsReport(analyticsStore, { days: rangeDays })
+
+            // Keep the ranking table reasonable; the CSV export has the full list.
+            const topLimit = 20
+            const ranking = report.topContent.slice(0, topLimit).map((item, index) => ({ ...item, rank: index + 1 }))
+
+            res.render("/core/admin/views/layouts/index.html", {
+                title: "Analytics",
+                user: req.user,
+                dashboardAnalytics: true,
+                report,
+                ranking,
+                rankingLimit: topLimit,
+                ranges: RANGE_OPTIONS.map((option) => ({
+                    days: option.value,
+                    label: option.label,
+                    active: option.value === rangeDays,
+                    href: `/aether/analytics?range=${option.value}`,
+                })),
+                exportUrl: `/aether/analytics/export.csv?range=${rangeDays}`,
+                analyticsJson: JSON.stringify({ series: report.series, totals: report.totals }).replace(/</g, "\\u003c"),
+            })
+        } catch (error) {
+            console.error("Analytics page error:", error)
+            res.status(500).html("<h1>Error</h1><p>Could not load analytics</p>")
+        }
+    })
+
+    // CSV export of the article view ranking for the selected range
+    app.get("/aether/analytics/export.csv", authenticate, async (req, res) => {
+        try {
+            if (!analyticsStore) {
+                return res.status(503).json({ error: "Analytics disabled" })
+            }
+            const { buildAnalyticsReport, reportToCsv } = await import("../utils/analytics-utils.js")
+            const days = parseInt(req.queryParams?.get("range") || "30")
+            const report = await buildAnalyticsReport(analyticsStore, { days })
+            const csv = reportToCsv(report)
+
+            res.setHeader("Content-Type", "text/csv; charset=utf-8")
+            res.setHeader("Content-Disposition", `attachment; filename="aether-analytics-${report.range.from}_${report.range.to}.csv"`)
+            // BOM keeps Excel happy with UTF-8 (Chinese titles)
+            res.end("\uFEFF" + csv)
+        } catch (error) {
+            console.error("Analytics export error:", error)
+            res.status(500).json({ error: "Export failed" })
         }
     })
 }

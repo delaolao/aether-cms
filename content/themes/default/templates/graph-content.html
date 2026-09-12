@@ -1,7 +1,8 @@
 <article class="single-post">
     <header class="post-header">
         <h1 class="post-title">知识图谱</h1>
-        <h2>共 {{ graphStats.nodes }} 个节点、{{ graphStats.edges }} 条链接</h2>
+        <h2>共 {{ graphStats.nodes }} 个节点、{{ graphStats.edges }} 条链接{{#if graphStats.totalViews}}、{{ graphStats.totalViews }} 次阅读{{/if}}</h2>
+        <p class="graph-pageviews"><span class="post-views" title="本页访问次数">👁 本页访问 {{ viewCount || 0 }} 次</span></p>
     </header>
 
     <div class="post-content graph-page">
@@ -11,6 +12,14 @@
                 <option value="">全部类型</option>
                 <option value="post">文章</option>
                 <option value="page">页面</option>
+            </select>
+            <select id="graph-views-filter">
+                <option value="">全部阅读量</option>
+                <option value="top5">阅读 Top 5</option>
+                <option value="top10">阅读 Top 10</option>
+                <option value="top20">阅读 Top 20</option>
+                <option value="read">有阅读</option>
+                <option value="unread">未被阅读</option>
             </select>
             <button type="button" id="graph-reset">重置视图</button>
             <span class="graph-hint">拖拽节点 · 空白拖拽平移(边界停住) · 滚轮缩放 · 双击复位 · 点击节点打开</span>
