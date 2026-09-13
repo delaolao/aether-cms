@@ -27,8 +27,15 @@
     实例目录列表（默认三个实例）。
 
 .PARAMETER RestartCommand
-    在每个实例目录内执行的重启命令，例如 'pm2 restart all'。
+    在每个实例目录内执行的重启命令，例如 'pm2 restart all'（配合 -RestartMode command）。
     不提供时不会重启——新 COOKIE_SECRET 要等下次重启才生效，脚本会明确提示。
+
+.PARAMETER RestartMode
+    auto（默认）：自动找 tmux 里**工作目录等于该实例目录**的会话，先 Ctrl-C 停掉旧进程，
+    再用该会话原本的启动命令（tmux 的 pane_start_command，缺失时用 `node index.js`）重新拉起，
+    并等待首页返回 200；找不到匹配会话时只告警，绝不杀任何进程。
+    command：使用 -RestartCommand（pm2 等场景）。
+    none：不重启。
 
 .PARAMETER AdminPassword
     指定新的管理员口令（留空则自动生成一个 20 位强口令并打印一次）。
@@ -88,6 +95,8 @@ param(
         '/data/te_se_zi_yuan/xq/aether-cms'
     ),
     [string]$RestartCommand = '',
+    [ValidateSet('auto', 'command', 'none')]
+    [string]$RestartMode = 'auto',
     [string]$AdminPassword = '',
     [string]$AdminUser = 'admin',
     [switch]$KeepSessions,
@@ -143,7 +152,7 @@ Write-Host ("轮换 COOKIE_SECRET : {0}" -f (-not $SkipSecret))
 Write-Host ("重置管理员口令     : {0}{1}" -f (-not $SkipPassword), $(if ($SkipPassword) { '' } else { "（账号 $AdminUser，三实例同一口令）" }))
 Write-Host ("清空 sessions.json : {0}" -f (-not $KeepSessions))
 Write-Host ("轮换统计盐值       : {0}" -f [bool]$RotateAnalyticsSalt)
-Write-Host ("重启命令           : {0}" -f $(if ($RestartCommand) { $RestartCommand } else { '(无 —— 新密钥需手动重启后生效)' }))
+Write-Host ("重启方式           : {0}" -f $(if ($RestartCommand) { "command → $RestartCommand" } elseif ($RestartMode -eq 'auto') { 'auto（在 tmux 里按实例目录原地重启）' } else { $RestartMode }))
 Write-Host ("模式               : {0}" -f $(if ($CheckOnly) { '只读体检（CheckOnly，不做任何修改）' } elseif ($DryRun) { 'DryRun（不做任何修改）' } else { '正式执行' }))
 
 # ---------------------------------------------------------------------------
@@ -181,6 +190,10 @@ for D in __INSTANCES__; do
     fi
     if command -v tmux >/dev/null 2>&1; then
         echo "  tmux 会话    : $(tmux ls 2>/dev/null | tr '\n' '|' || echo 无)"
+        echo "  tmux 明细（会话 | 前台命令 | 工作目录）:"
+        tmux list-panes -a -F '    #{session_name} | #{pane_current_command} | #{pane_current_path}' 2>/dev/null | head -n 20
+        echo "  tmux 启动命令（用于重启时还原）:"
+        tmux list-panes -a -F '    #{session_name} | #{pane_start_command}' 2>/dev/null | head -n 20
     else
         echo "  tmux         : 未安装"
     fi
@@ -204,6 +217,7 @@ DO_PASSWORD="__DO_PASSWORD__"
 DO_SALT="__DO_SALT__"
 CLEAR_SESSIONS="__CLEAR_SESSIONS__"
 RESTART_CMD="__RESTART__"
+RESTART_MODE="__RESTART_MODE__"
 ADMIN_USER="__ADMIN_USER__"
 ADMIN_PASS="__ADMIN_PASS__"
 RESET_TOOL="__RESET_TOOL__"
@@ -322,24 +336,74 @@ for D in __INSTANCES__; do
     fi
 
     # ---- 3) 重启 ----
-    if [ -n "$RESTART_CMD" ]; then
-        echo "  重启: $RESTART_CMD"
-        ( cd "$D" && eval "$RESTART_CMD" ) || echo "  重启命令返回非零（请手动确认）"
-        sleep 3
-    else
-        echo "  重启: 跳过（新 COOKIE_SECRET 需重启后生效）"
-    fi
-
-    # ---- 4) 复核 ----
     PORT=$(grep -E '^[[:space:]]*PORT=' "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d ' ')
     [ -z "$PORT" ] && PORT=8080
+    RESTARTED=0
+    if [ "$RESTART_MODE" = "none" ]; then
+        echo "  重启: 跳过（-RestartMode none，新 COOKIE_SECRET 需重启后生效）"
+    elif [ "$RESTART_MODE" = "command" ]; then
+        if [ -n "$RESTART_CMD" ]; then
+            echo "  重启: $RESTART_CMD"
+            ( cd "$D" && eval "$RESTART_CMD" ) || echo "  重启命令返回非零（请手动确认）"
+            RESTARTED=1
+        else
+            echo "  重启: 未提供 -RestartCommand，跳过"
+        fi
+    else
+        # auto：在 tmux 里找「工作目录 == 实例目录」的会话，原地重启
+        if command -v tmux >/dev/null 2>&1; then
+            SESS=$(tmux list-panes -a -F '#{session_name} #{pane_current_path}' 2>/dev/null | awk -v d="$D" '$2 == d { print $1; exit }')
+            if [ -n "$SESS" ]; then
+                START_CMD=$(tmux display-message -p -t "$SESS" '#{pane_start_command}' 2>/dev/null)
+                [ -z "$START_CMD" ] && START_CMD="node index.js"
+                echo "  重启: tmux 会话 [$SESS] 内 Ctrl-C 后重新执行: $START_CMD"
+                tmux send-keys -t "$SESS" C-c
+                # 等端口真正释放，避免新进程 EADDRINUSE
+                WAIT=0
+                while [ "$WAIT" -lt 12 ]; do
+                    if command -v ss >/dev/null 2>&1; then
+                        ss -ltn 2>/dev/null | awk '{ print $4 }' | grep -qE "[:.]$PORT$" || break
+                    else
+                        sleep 2
+                        break
+                    fi
+                    WAIT=$((WAIT + 1))
+                    sleep 1
+                done
+                [ "$WAIT" -ge 12 ] && echo "  WARNING: 端口 $PORT 在 12 秒内仍被占用（旧进程可能未退出）"
+                tmux send-keys -t "$SESS" "$START_CMD" Enter
+                RESTARTED=1
+            else
+                echo "  重启: WARNING 未找到工作目录为 $D 的 tmux 会话，未重启（请手动重启后再确认）"
+                FAILED=1
+            fi
+        else
+            echo "  重启: 未安装 tmux，跳过（请手动重启）"
+        fi
+    fi
+
+    # ---- 4) 复核（重启后给一点启动时间）----
     if command -v curl >/dev/null 2>&1; then
+        HOME_CODE=000
+        if [ "$RESTARTED" = "1" ]; then
+            TRY=0
+            while [ "$TRY" -lt 10 ]; do
+                HOME_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://127.0.0.1:$PORT/")
+                [ "$HOME_CODE" = "200" ] && break
+                TRY=$((TRY + 1))
+                sleep 2
+            done
+        else
+            HOME_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$PORT/")
+        fi
         ENV_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$PORT/.env")
-        HOME_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$PORT/")
         USERS_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1:$PORT/content/data/users.json")
         echo "  复核(端口 $PORT): / -> $HOME_CODE   /.env -> $ENV_CODE   /content/data/users.json -> $USERS_CODE"
         [ "$ENV_CODE" = "404" ] || { echo "  WARNING: /.env 未返回 404！"; FAILED=1; }
-        [ "$HOME_CODE" = "200" ] || echo "  WARNING: 首页未返回 200（若未重启，可能是旧进程仍在运行）"
+        if [ "$HOME_CODE" != "200" ]; then
+            echo "  WARNING: 首页未返回 200（实例可能没起来，请查看 tmux 会话输出）"
+            FAILED=1
+        fi
     else
         echo "  复核: 未找到 curl，跳过"
     fi
@@ -364,6 +428,7 @@ if ($CheckOnly) {
     $remoteScript = $remoteScript.Replace('__DO_SALT__', $(if ($RotateAnalyticsSalt) { '1' } else { '0' }))
     $remoteScript = $remoteScript.Replace('__CLEAR_SESSIONS__', $(if ($KeepSessions) { '0' } else { '1' }))
     $remoteScript = $remoteScript.Replace('__RESTART__', $RestartCommand)
+    $remoteScript = $remoteScript.Replace('__RESTART_MODE__', $(if ($RestartCommand) { 'command' } else { $RestartMode }))
     $remoteScript = $remoteScript.Replace('__ADMIN_USER__', $AdminUser)
     $remoteScript = $remoteScript.Replace('__ADMIN_PASS__', $AdminPasswordBash)
     $remoteScript = $remoteScript.Replace('__RESET_TOOL__', "/tmp/$tag-reset-admin-password.mjs")
@@ -386,7 +451,7 @@ if ($DryRun -and -not $CheckOnly) {
     Write-Host '  1) 备份各实例 .env 到 ~/.aether-security-backups/'
     Write-Host '  2) 生成新的 COOKIE_SECRET 并写回 .env（保留权限位）'
     Write-Host '  3) 重置管理员口令并（默认）清空 sessions.json'
-    Write-Host '  4) 执行重启命令并复核 /.env 是否 404'
+    Write-Host '  4) 重启（默认 auto：在 tmux 里按实例目录原地重启并等待首页 200）并复核 /.env 是否 404'
     Write-Host ("新口令（本次 DryRun 生成，正式执行时会重新生成）：{0}" -f $AdminPassword)
     Write-Host ''
     Write-Host '想先看完整远端脚本请加 -ShowRemoteScript。'
