@@ -232,6 +232,20 @@ async function renderTagCombination(app, req, res, systems, rawSlugs) {
         const knownSlugs = new Set(allTags.map((t) => t.slug))
         for (const s of slugs) {
             if (!knownSlugs.has(s)) {
+                // 旧链接兜底：学段（小学/初中/高中…）从标签迁到 stage 字段后，
+                // /tag/小学 已没有对应标签 —— 若同名学段存在就 301 到 /stage/小学，
+                // 避免收藏夹/搜索引擎里的老链接变成 404。
+                if (slugs.length === 1 && contentManager.getStageFrequency) {
+                    try {
+                        const stages = await contentManager.getStageFrequency({ status: "published" })
+                        const matched = stages.find((stage) => slugify(stage.name) === s)
+                        if (matched) {
+                            return res.redirect(`/stage/${encodeURIComponent(matched.slug)}`, 301)
+                        }
+                    } catch (error) {
+                        console.error("Stage fallback for /tag/:slug failed:", error.message)
+                    }
+                }
                 return handle404(res, req, themeManager, settingsService)
             }
         }
