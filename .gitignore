@@ -34,6 +34,9 @@ node_modules
 # Release snapshots (build artifacts)
 /release/
 
-# Local deployment tooling — contains private server address / instance paths,
+# Local deployment tooling â€” contains private server address / instance paths,
 # so it stays on the operator's machine. Share a parameterised copy instead.
 /tools/sync-today-to-server.ps1
+
+# 同步脚本的清单自检临时文件
+/.aether-recent-files.tmp
