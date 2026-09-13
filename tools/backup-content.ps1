@@ -159,7 +159,7 @@ if [ "$DO_RESTORE" = "1" ]; then
     echo "=== 恢复: $RESTORE_DIR  <==  $RESTORE_ARCHIVE ==="
     if [ ! -d "$RESTORE_DIR" ]; then echo "  ERROR: 实例目录不存在"; exit 1; fi
     if [ ! -f "$RESTORE_ARCHIVE" ]; then echo "  ERROR: 归档不存在"; exit 1; fi
-    PRE="$REMOTE_ROOT/prerestore-$(basename "$RESTORE_DIR")-$STAMP.tgz"
+    PRE="$REMOTE_ROOT/prerestore-$(echo "$RESTORE_DIR" | sed 's#^/##; s#/#-#g')-$STAMP.tgz"
     if tar -czf "$PRE" -C "$RESTORE_DIR" content/data content/uploads 2>/dev/null; then
         echo "  恢复前备份: $PRE ($(human $(stat -c '%s' "$PRE")))"
     else
@@ -186,7 +186,10 @@ for D in __INSTANCES__; do
     echo ""
     echo "=== $D ==="
     if [ ! -d "$D" ]; then echo "  ERROR: 目录不存在，跳过"; FAILED=1; continue; fi
-    NAME=$(basename "$D")
+    # 三个实例目录都叫 aether-cms，用 basename 会让归档与 manifest 互相覆盖：
+    # 统一用「去掉开头斜杠、把 / 换成 -」的完整路径作为唯一键。
+    NAME=$(echo "$D" | sed 's#^/##; s#/#-#g')
+    BASE=$(basename "$D")
     DATA="$D/content/data"
     UPLOADS="$D/content/uploads"
     if [ ! -d "$DATA" ]; then echo "  ERROR: 缺少 $DATA"; FAILED=1; continue; fi
@@ -235,10 +238,11 @@ for D in __INSTANCES__; do
     fi
 
     # manifest：本机再复算 sha256 与 tar 条目数，做端到端校验
-    printf '{\n  "instance": "%s",\n  "name": "%s",\n  "stamp": "%s",\n  "mode": "%s",\n  "archive": "%s",\n  "archiveBytes": %s,\n  "archiveSha256": "%s",\n  "archiveEntries": %s,\n  "counts": { "posts": %s, "pages": %s, "custom": %s, "uploads": %s },\n  "bytes": { "data": %s, "uploads": %s },\n  "includeAnalytics": %s\n}\n' \
-        "$D" "$NAME" "$STAMP" "$([ "$DO_ARCHIVE" = "1" ] && echo backup || echo verify)" "$ARCHIVE_NAME" "$BYTES" "$SHA" "$ENTRIES" \
+    printf '{\n  "instance": "%s",\n  "name": "%s",\n  "basename": "%s",\n  "stamp": "%s",\n  "mode": "%s",\n  "archive": "%s",\n  "archiveBytes": %s,\n  "archiveSha256": "%s",\n  "archiveEntries": %s,\n  "counts": { "posts": %s, "pages": %s, "custom": %s, "uploads": %s },\n  "bytes": { "data": %s, "uploads": %s },\n  "includeAnalytics": %s\n}\n' \
+        "$D" "$NAME" "$BASE" "$STAMP" "$([ "$DO_ARCHIVE" = "1" ] && echo backup || echo verify)" "$ARCHIVE_NAME" "$BYTES" "$SHA" "$ENTRIES" \
         "$POSTS" "$PAGES" "$CUSTOM" "$UPLOAD_FILES" "$DATA_BYTES" "$UPLOAD_BYTES" \
         "$([ "$INCLUDE_ANALYTICS" = "1" ] && echo true || echo false)" > "$MANIFEST"
+    echo "  实例键: $NAME（目录名 $BASE）"
     echo "  manifest: $(basename "$MANIFEST")"
 done
 
@@ -367,12 +371,12 @@ foreach ($manifestFile in $manifests) {
     $isVerifyRun = [string]$manifest.mode -eq 'verify' -or -not $manifest.archive
     $archivePath = if ($manifest.archive) { Join-Path $localTagDir $manifest.archive } else { '' }
     $row = [ordered]@{
-        实例   = $manifest.name
-        归档   = $(if ($isVerifyRun) { '（校验模式，无归档）' } else { $manifest.archive })
-        大小   = $(if ($isVerifyRun) { '-' } else { '{0:N1} MB' -f ($manifest.archiveBytes / 1MB) })
-        文章   = $manifest.counts.posts
-        上传   = $manifest.counts.uploads
-        校验   = ''
+        实例目录 = $manifest.instance
+        归档     = $(if ($isVerifyRun) { '（校验模式，无归档）' } else { $manifest.archive })
+        大小     = $(if ($isVerifyRun) { '-' } else { '{0:N1} MB' -f ($manifest.archiveBytes / 1MB) })
+        文章     = $manifest.counts.posts
+        上传     = $manifest.counts.uploads
+        校验     = ''
     }
     if ($isVerifyRun) {
         $row.校验 = '已清点（未打包）'
@@ -395,6 +399,8 @@ foreach ($manifestFile in $manifests) {
 }
 
 $results | Format-Table -AutoSize
+$missing = $manifests.Count
+Write-Host ("  本次拉回 {0} 个实例的 manifest（应与实例数一致；若偏少说明服务端归档被同名覆盖）" -f $missing)
 
 # 与上一份 manifest 比对（-Verify 的核心）
 $previous = Get-ChildItem -Path $Destination -Recurse -Filter '*.manifest.json' -File |
@@ -432,17 +438,27 @@ if ($Prune) {
             $byInstance[$m.name] += $folder.FullName
         }
     }
+    # 一个时间戳目录里含多个实例，同一目录可能被多个实例键同时判定为「过旧」，
+    # 所以先汇总去重再删除，并跳过已被删掉的路径（否则 -ErrorAction Stop 会中断）。
+    $toDelete = @()
     foreach ($name in $byInstance.Keys) {
         $dirs = $byInstance[$name] | Select-Object -Unique | Sort-Object -Descending
         if ($dirs.Count -gt $Keep) {
-            foreach ($old in $dirs[$Keep..($dirs.Count - 1)]) {
-                Remove-Item -LiteralPath $old -Recurse -Force
-                Write-Host ("  已删除旧备份: {0} ({1})" -f $old, $name) -ForegroundColor Yellow
-            }
+            $toDelete += $dirs[$Keep..($dirs.Count - 1)]
         } else {
             Write-Host ("  {0}: 当前 {1} 份，未超过 {2} 份" -f $name, $dirs.Count, $Keep)
         }
     }
+    foreach ($old in ($toDelete | Select-Object -Unique)) {
+        if (-not (Test-Path $old)) { continue }
+        Remove-Item -LiteralPath $old -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path $old) {
+            Write-Host ("  删除失败（请手动处理）: {0}" -f $old) -ForegroundColor Red
+        } else {
+            Write-Host ("  已删除旧备份目录: {0}" -f $old) -ForegroundColor Yellow
+        }
+    }
+    if ($toDelete.Count -eq 0) { Write-Host '  无需清理。' }
 } else {
     Write-Host ''
     Write-Host ("提示：本机留档目录会持续增长；需要自动清理超出的旧份数时加 -Prune（每个实例保留最近 {0} 份）。" -f $Keep) -ForegroundColor DarkGray
