@@ -281,6 +281,7 @@ function searchUrl(params, overrides = {}) {
     if (merged.type && merged.type !== "all") search.set("type", merged.type)
     if (merged.tag) search.set("tag", merged.tag)
     if (merged.category) search.set("category", merged.category)
+    if (merged.stage) search.set("stage", merged.stage)
     if (merged.sort && merged.sort !== "relevance") search.set("sort", merged.sort)
     if (merged.page && Number(merged.page) > 1) search.set("page", String(merged.page))
     const qs = search.toString()
@@ -338,7 +339,7 @@ function resultItem(entry, terms) {
   <div class="search-result-meta">
     <span class="search-result-type">${escapeHtml(TYPE_LABELS[doc.type] || doc.type)}</span>
     ${doc.date ? `<time datetime="${escapeHtml(doc.date)}">${escapeHtml(doc.date)}</time>` : ""}
-    ${doc.category ? `<a class="search-result-category" href="/category/${encodeURIComponent(slugify(doc.category))}">${escapeHtml(doc.category)}</a>` : ""}
+    ${doc.stage ? `<a class="post-stage" href="/stage/${encodeURIComponent(slugify(doc.stage))}">${escapeHtml(doc.stage)}</a>` : ""}
     ${entry.views ? `<span class="post-views" title="阅读次数">👁 ${entry.views}</span>` : ""}
     <span class="search-result-hits">命中：${escapeHtml(hitNotes.join("、") || "正文")}</span>
   </div>
@@ -347,7 +348,7 @@ function resultItem(entry, terms) {
 </li>`
 }
 
-function emptyStateHtml({ docs, params, tagFacets, categoryFacets }) {
+function emptyStateHtml({ docs, params, tagFacets, categoryFacets, stageFacets }) {
     const hotTags = tagFacets.slice(0, 12)
     const newest = docs.slice(0, 6)
     const tagCount = new Set()
@@ -380,6 +381,21 @@ function emptyStateHtml({ docs, params, tagFacets, categoryFacets }) {
                 .join("")}</div></div>`
           : ""
   }
+  ${
+      stageFacets && stageFacets.length
+          ? `<div class="search-facet"><span class="search-facet-label">学段</span><div class="search-facet-chips">${stageFacets
+                .map(
+                    (entry) =>
+                        // No keyword yet: go to the dedicated stage page, which
+                        // lists the content (a bare `?stage=` would render this
+                        // same intro again).
+                        `<a class="filter-chip" href="/stage/${encodeURIComponent(entry.slug)}">${escapeHtml(
+                            entry.name
+                        )} <span class="chip-count">${entry.count}</span></a>`
+                )
+                .join("")}</div></div>`
+          : ""
+  }
   <h3 class="search-section-title">最新内容</h3>
   <ul class="search-newest">
     ${newest
@@ -392,6 +408,7 @@ function emptyStateHtml({ docs, params, tagFacets, categoryFacets }) {
         .join("")}
   </ul>
   <div class="search-extra-links">
+    <a href="/stage">按学段浏览 →</a>
     <a href="/tag-cloud">标签云 →</a>
     <a href="/notes/graph">知识图谱 →</a>
     <a href="/videos">视频库 →</a>
@@ -399,7 +416,7 @@ function emptyStateHtml({ docs, params, tagFacets, categoryFacets }) {
 </div>`
 }
 
-function buildSearchPageHtml({ docs, query, results, params, facets, pagination, relaxed, tookMs, usedTag, usedCategory }) {
+function buildSearchPageHtml({ docs, query, results, params, facets, pagination, relaxed, tookMs, usedTag, usedCategory, usedStage }) {
     const form = `<form class="search-form" role="search" action="/search" method="get" data-search-suggest>
   <input type="search" name="q" value="${escapeHtml(query.raw)}" placeholder="搜索文章、页面、标签…（支持 &quot;精确短语&quot;）" aria-label="站内搜索" autocomplete="off" />
   <button type="submit" class="search-submit">🔍 搜索</button>
@@ -411,7 +428,7 @@ function buildSearchPageHtml({ docs, query, results, params, facets, pagination,
         return `<div class="search-page">
   <h1 class="search-title">站内搜索</h1>
   ${form}
-  ${emptyStateHtml({ docs, params, tagFacets: facets.tags, categoryFacets: facets.categories })}
+  ${emptyStateHtml({ docs, params, tagFacets: facets.tags, categoryFacets: facets.categories, stageFacets: facets.stages })}
 </div>`
     }
 
@@ -419,7 +436,7 @@ function buildSearchPageHtml({ docs, query, results, params, facets, pagination,
         results.total
             ? `关键词 <strong>${escapeHtml(query.terms.map((t) => t.text).join(" "))}</strong>：找到 <strong>${results.total}</strong> 条结果（${tookMs} ms）`
             : `关键词 <strong>${escapeHtml(query.terms.map((t) => t.text).join(" "))}</strong>：没有匹配内容`
-    }${usedTag || usedCategory ? "（已应用筛选）" : ""}</p>`
+    }${usedTag || usedCategory || usedStage ? "（已应用筛选）" : ""}</p>`
 
     const relaxedNote = relaxed
         ? `<p class="search-note">未找到同时包含全部关键词的内容，已放宽为「任意关键词匹配」。</p>`
@@ -480,7 +497,7 @@ function buildSearchPageHtml({ docs, query, results, params, facets, pagination,
     const facetsHtml = `<div class="search-facets">
     <div class="search-facet"><span class="search-facet-label">类型</span><div class="search-facet-chips">${typeChips}</div></div>
     <div class="search-facet"><span class="search-facet-label">排序</span><div class="search-facet-chips">${sortChips}</div></div>
-    ${facetChips("标签", facets.tags.slice(0, FACET_TAGS), params, "tag", params.tag)}
+    ${facetChips("学段", facets.stages, params, "stage", params.stage)}
     ${facetChips("分类", facets.categories.slice(0, FACET_CATEGORIES), params, "category", params.category)}
   </div>`
 
@@ -509,6 +526,7 @@ export function setupSearchRoute(app, systems) {
                 type: ["post", "page"].includes(getParam("type")) ? getParam("type") : "all",
                 tag: getParam("tag"),
                 category: getParam("category"),
+                stage: getParam("stage"),
                 sort: ["newest", "views"].includes(getParam("sort")) ? getParam("sort") : "relevance",
                 page: Math.max(1, parseInt(getParam("page") || "1", 10) || 1),
             }
@@ -536,6 +554,7 @@ export function setupSearchRoute(app, systems) {
             const facets = {
                 tags: countFacet(facetSource, (doc) => doc.tags),
                 categories: countFacet(facetSource, (doc) => (doc.category ? [doc.category] : [])),
+                stages: countFacet(facetSource, (doc) => (doc.stage ? [doc.stage] : [])),
                 typeCounts: {
                     all: facetSource.length,
                     post: facetSource.filter((entry) => entry.doc.type === "post").length,
@@ -552,6 +571,7 @@ export function setupSearchRoute(app, systems) {
                 filtered = filtered.filter((entry) => entry.doc.tags.some((tag) => slugify(tag) === canonicalTagSlug))
             }
             if (params.category) filtered = filtered.filter((entry) => slugify(entry.doc.category) === params.category)
+            if (params.stage) filtered = filtered.filter((entry) => slugify(entry.doc.stage || "") === params.stage)
 
             const sorted = [...filtered]
             if (params.sort === "relevance") {
@@ -585,13 +605,14 @@ export function setupSearchRoute(app, systems) {
                         page: currentPage,
                         perPage: PER_PAGE,
                         totalPages,
-                        facets: { tags: facets.tags, categories: facets.categories, types: facets.typeCounts },
+                        facets: { tags: facets.tags, categories: facets.categories, stages: facets.stages, types: facets.typeCounts },
                         results: pageEntries.map((entry) => ({
                             title: entry.doc.title,
                             url: entry.doc.url,
                             type: entry.doc.type,
                             date: entry.doc.date,
                             category: entry.doc.category,
+                            stage: entry.doc.stage,
                             tags: entry.doc.tags,
                             views: entry.views || 0,
                             score: Math.round(entry.score * 10) / 10,
@@ -618,6 +639,7 @@ export function setupSearchRoute(app, systems) {
                 tookMs,
                 usedTag: params.tag,
                 usedCategory: params.category,
+                usedStage: params.stage,
             })
 
             const title = query.terms.length ? `搜索：${query.terms.map((t) => t.text).join(" ")}` : "站内搜索"
