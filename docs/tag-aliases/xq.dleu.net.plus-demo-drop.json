@@ -1,0 +1,27 @@
+{
+  "$comment": "标签别名（Aether CMS）：aliases 为「别名 → 规范名」，drop 为整条丢弃的标签。放到 <实例>/content/data/tag-aliases.json 后 2 秒内生效（无需重启），删除该文件即完全回滚。",
+  "generatedAt": "2026-09-13T11:34:03.299Z",
+  "generatedBy": "tools/tag-audit.mjs --emit-aliases",
+  "source": "https://xq.dleu.net",
+  "aliases": {
+    "MarkDown": "markdown",
+    "cpu": "中央处理器"
+  },
+  "drop": [
+    "公式",
+    "吉他",
+    "wiki",
+    "王若琳",
+    "Aether CMS",
+    "graph",
+    "hblog-ng",
+    "KaTeX"
+  ],
+  "notes": [
+    "归一化重复：MarkDown → markdown",
+    "同文章集合（5 篇）：cpu → 中央处理器",
+    "未丢弃「markdown」：它与别名规范名大小写等价（丢弃会让别名失效）",
+    "未丢弃「MarkDown」：它与别名规范名大小写等价（丢弃会让别名失效）",
+    "丢弃演示/样板内容带来的噪声标签：公式, 吉他, wiki, 王若琳, Aether CMS, graph, hblog-ng, KaTeX"
+  ]
+}

@@ -4,6 +4,45 @@
 
 > 版本号遵循语义化。
 
+## [0.14.0] - 2026-09-13
+
+### 🆕 `--emit-aliases`：一键生成可直接使用的别名文件（G1 的落地方式）
+
+`tools/tag-audit.mjs` 新增 `--emit-aliases <文件>`：把体检结果直接变成可以丢进 `content/data/tag-aliases.json` 的文件，**不用改任何内容文件**就能合并同义标签、隐藏演示噪声标签。
+
+- 默认只写**可无条件判定**的两类合并：归一化后同名（大小写/全半角/空格差异）与「覆盖完全相同的文章集合（≥2 篇）」
+- `--aliases-drop-demo`：同时把演示/样板内容带来的噪声标签写进 `drop`
+- `--aliases-include-review`：连语义近似候选也写进去（建议先人工过一遍 `notes`）
+- 多站点时按站点分别输出 `<文件名>.<host>.json`
+- **两道安全检查**（来自一次真实踩坑——最初的 drop 列表同时含 `markdown` 与 `MarkDown`，会让 `MarkDown → markdown` 这条别名失去意义）：
+  1. 别名的规范名（含大小写等价形式）**不会被写进 `drop`**，并在 `notes` 里说明原因；
+  2. 若某个待丢弃的标签**还被非演示文章使用**，`notes` 会列出这些文章标题并提示「丢弃后它们会失去该标签，如不接受请从 drop 里删掉」。
+- `--quiet` 现在真正生效（之前只解析未使用）
+
+### 📦 现成产物：`docs/tag-aliases/`
+
+针对本仓库的两个站点，已经生成并**逐份用别名加载器验证过解析结果**的 4 个文件：
+
+| 文件 | 合并 | 丢弃 |
+|---|---|---|
+| `xl.dleu.net.json` | `MarkDown → markdown` | — |
+| `xl.dleu.net.plus-demo-drop.json` | 同上 | 7 个演示噪声标签 |
+| `xq.dleu.net.json` | `MarkDown → markdown`、`cpu → 中央处理器` | — |
+| `xq.dleu.net.plus-demo-drop.json` | 同上 | 8 个演示噪声标签 |
+
+复制到实例的 `content/data/tag-aliases.json` 后 **2 秒内生效**（无需重启），删除即回滚；用法与重新生成方式见 `docs/tag-aliases/README.md`。
+
+验证输出（把每份文件喂给 `configureTagAliases` 后看解析结果）：
+
+```
+xl.dleu.net.json                  别名 1 / 丢弃 0 | MarkDown→markdown  markdown→markdown  wiki→wiki  教程→教程
+xl.dleu.net.plus-demo-drop.json   别名 1 / 丢弃 7 | MarkDown→markdown  wiki→(丢弃)  公式→(丢弃)  教程→教程
+xq.dleu.net.json                  别名 2 / 丢弃 0 | cpu→中央处理器  中央处理器→中央处理器  教程→教程
+xq.dleu.net.plus-demo-drop.json   别名 2 / 丢弃 8 | cpu→中央处理器  wiki→(丢弃)  王若琳→(丢弃)  教程→教程
+```
+
+---
+
 ## [0.13.0] - 2026-09-13
 
 ### 🆕 标签合并执行工具（B：方案 JSON → 人工确认 → 安全改写内容文件）

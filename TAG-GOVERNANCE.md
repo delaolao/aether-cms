@@ -97,11 +97,22 @@ xl 站的 `markdown` → `MarkDown` 同理；`心理*`/`情绪*`/`学习*`/`注�
 
 | 选项 | 做法 | 影响 | 可逆性 |
 |---|---|---|---|
-| **G1 只隐藏标签（最小动作，推荐先做）** | 在 `content/data/tag-aliases.json` 的 `drop` 里加入这些噪声标签 | 标签云/标签页/搜索/API/sitemap 立刻干净；**文章仍在**（可作语法参考） | 删掉 drop 条目即恢复 |
+| **G1 只隐藏标签（最小动作，推荐先做）** | 直接把现成文件复制进实例：`docs/tag-aliases/<站点>.plus-demo-drop.json` → `content/data/tag-aliases.json` | 标签云/标签页/搜索/API/sitemap 立刻干净；**文章仍在**（可作语法参考） | 删掉文件即恢复（2 秒内） |
 | **G2 文章转草稿** | 通过后台把这些文章的 `status` 改成 `draft`（或批量脚本） | 前台/搜索/sitemap/API 全部不再出现，内容仍保留在实例里可随时恢复 | 改回 published 即恢复 |
 | **G3 删除文章** | 直接删除 `.md` | 最彻底，同时清掉标签、封面缓存、视频库条目 | 需靠备份（E）恢复 |
 
-**推荐顺序**：**G1 立刻做**（零风险、当天见效）→ 视内容规划再决定 G2/G3（可以先做 E 的第一份备份，再动 G2/G3）。
+**G1 已经准备好了现成文件**（见 `docs/tag-aliases/README.md`）：
+
+| 文件 | 内容 |
+|---|---|
+| `docs/tag-aliases/xl.dleu.net.json` | `MarkDown → markdown` |
+| `docs/tag-aliases/xl.dleu.net.plus-demo-drop.json` | 同上 + 丢弃 7 个演示噪声标签 |
+| `docs/tag-aliases/xq.dleu.net.json` | `MarkDown → markdown`、`cpu → 中央处理器` |
+| `docs/tag-aliases/xq.dleu.net.plus-demo-drop.json` | 同上 + 丢弃 8 个演示噪声标签 |
+
+生成器内置两道安全检查（别名的规范名不会被丢弃；被非演示文章使用的标签会在 `notes` 里单独提示），并已用别名加载器逐份验证解析结果。
+
+**推荐顺序**：**G1 立刻做**（复制一个文件，零风险、当天见效）→ 跑一次 E 的备份 → 视内容规划再决定 G2/G3。
 
 **需要你回答**：只做 G1，还是 G1 + G2（转草稿）？若选 G3（删除），请先跑一次 `.\tools\backup-content.ps1` 留下备份。
 

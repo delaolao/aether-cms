@@ -1,0 +1,13 @@
+{
+  "$comment": "标签别名（Aether CMS）：aliases 为「别名 → 规范名」，drop 为整条丢弃的标签。放到 <实例>/content/data/tag-aliases.json 后 2 秒内生效（无需重启），删除该文件即完全回滚。",
+  "generatedAt": "2026-09-13T11:34:02.576Z",
+  "generatedBy": "tools/tag-audit.mjs --emit-aliases",
+  "source": "https://xl.dleu.net",
+  "aliases": {
+    "MarkDown": "markdown"
+  },
+  "drop": [],
+  "notes": [
+    "归一化重复：MarkDown → markdown"
+  ]
+}

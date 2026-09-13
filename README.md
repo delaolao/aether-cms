@@ -68,6 +68,8 @@
   - 大小写/全半角/空格差异**已由保存时归一化处理**，不必写进别名表；别名表用于**语义**合并（`cpu` ↔ `中央处理器`）或指定规范写法（`MarkDown` → `markdown`）
   - 文件改动 **2 秒内自动生效**（按 mtime 重载），无需重启进程
   - 同名工具函数：`resolveTagName()` / `canonicalizeTagList()`（`core/lib/content/utils/tag-aliases.js`）
+  - **现成文件**：`docs/tag-aliases/` 里已经为本仓库的两个站点生成好可直接复制的别名文件（含「只合并同义」与「顺带隐藏演示噪声标签」两种版本），用法见 `docs/tag-aliases/README.md`
+  - 体检工具支持一键生成：`node tools/tag-audit.mjs <站点> --emit-aliases 输出.json [--aliases-drop-demo] [--aliases-include-review]`
 - **执行合并（安全改写内容文件）**：确认方案后由 `tools/tag-merge.mjs` 落到内容文件上——
   ```bash
   node tools/tag-merge.mjs --plan tag-merge-plan.json                 # 预览（默认不写任何文件）

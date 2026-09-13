@@ -54,12 +54,15 @@ const DEMO_TITLE_PATTERNS = [/aether cms/i, /hblog/i, /obsidian/i, /markdown/i, 
 // 参数
 // --------------------------------------------------------------------------
 function parseArgs(argv) {
-    const args = { hosts: [], dir: "", json: false, emitPlan: "", quiet: false }
+    const args = { hosts: [], dir: "", json: false, emitPlan: "", emitAliases: "", aliasesDropDemo: false, aliasesIncludeReview: false, quiet: false }
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         if (arg === "--dir") args.dir = argv[++i]
         else if (arg === "--json") args.json = true
         else if (arg === "--emit-plan") args.emitPlan = argv[++i]
+        else if (arg === "--emit-aliases") args.emitAliases = argv[++i]
+        else if (arg === "--aliases-drop-demo") args.aliasesDropDemo = true
+        else if (arg === "--aliases-include-review") args.aliasesIncludeReview = true
         else if (arg === "--quiet") args.quiet = true
         else if (arg.startsWith("--")) {
             console.error(`未知参数: ${arg}`)
@@ -67,7 +70,7 @@ function parseArgs(argv) {
         } else args.hosts.push(arg)
     }
     if (!args.dir && args.hosts.length === 0) {
-        console.error("用法: node tools/tag-audit.mjs <站点URL...> | --dir <content/data 路径> [--emit-plan 文件] [--json]")
+        console.error("用法: node tools/tag-audit.mjs <站点URL...> | --dir <content/data 路径> [--emit-plan 文件] [--emit-aliases 文件] [--json]")
         process.exit(2)
     }
     return args
@@ -391,6 +394,94 @@ function buildPlan(source, report) {
 }
 
 // --------------------------------------------------------------------------
+// 标签别名文件（供 C 的读取层归一使用；可直接丢进 content/data/tag-aliases.json）
+// --------------------------------------------------------------------------
+/**
+ * 由体检结果生成一份可直接使用的别名文件。
+ * 默认只包含「可无条件合并」的部分（归一化重复 + 文章集合完全相同）；
+ * 语义近似（review）与演示噪声标签（drop）需要显式开启——它们涉及内容策略。
+ */
+function buildAliasFile(source, report, options = {}) {
+    const aliases = {}
+    const drop = []
+    const notes = []
+
+    for (const group of report.exactDupes) {
+        const [keep, ...rest] = [...group].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        for (const tag of rest) aliases[tag.name] = keep.name
+        notes.push(`归一化重复：${rest.map((t) => t.name).join(", ")} → ${keep.name}`)
+    }
+    for (const group of report.strongSameSet) {
+        const sorted = [...group.tags].sort(
+            (a, b) => (report.tagPosts.get(b) || []).length - (report.tagPosts.get(a) || []).length || a.localeCompare(b)
+        )
+        const [keep, ...rest] = sorted
+        for (const tag of rest) aliases[tag] = keep
+        notes.push(`同文章集合（${group.posts.length} 篇）：${rest.join(", ")} → ${keep}`)
+    }
+    if (options.includeReview) {
+        for (const near of report.nearNames) {
+            const keep = near.a.count >= near.b.count ? near.a : near.b
+            const other = keep === near.a ? near.b : near.a
+            if (!aliases[other.name]) aliases[other.name] = keep.name
+            notes.push(`语义近似（人工确认项，已按使用篇数保留 ${keep.name}）：${other.name} → ${keep.name}`)
+        }
+    }
+    if (options.dropDemo) {
+        // 两道保险，避免「丢弃」与「归并」互相打架：
+        //   1. 别名的规范名（或其别名键）不能被丢弃——否则别名解析完又立刻被丢掉；
+        //   2. 若该标签还被非演示文章使用，丢弃会让那些文章失去这个标签，必须提示。
+        const canonicalTargets = new Set(Object.values(aliases).map((v) => v.toLowerCase()))
+        const aliasKeys = new Set(Object.keys(aliases).map((k) => k.toLowerCase()))
+        const demoTitleSet = new Set(report.demoArticles.map((article) => article.title))
+        for (const tag of report.demoTags) {
+            const key = tag.name.toLowerCase()
+            if (canonicalTargets.has(key)) {
+                notes.push(`未丢弃「${tag.name}」：它与别名规范名大小写等价（丢弃会让别名失效）`)
+                continue
+            }
+            if (aliasKeys.has(key)) {
+                notes.push(`未丢弃「${tag.name}」：它已作为别名并入「${aliases[tag.name] ?? aliases[Object.keys(aliases).find((k) => k.toLowerCase() === key)] ?? ""}」`)
+                continue
+            }
+            const users = report.tagPosts.get(tag.name) || []
+            const nonDemoUsers = users.filter((title) => !demoTitleSet.has(title))
+            drop.push(tag.name)
+            if (nonDemoUsers.length) {
+                notes.push(
+                    `注意：「${tag.name}」还被 ${nonDemoUsers.length} 篇非演示文章使用（${nonDemoUsers.slice(0, 3).join("、")}${
+                        nonDemoUsers.length > 3 ? "…" : ""
+                    }），丢弃后这些文章会失去该标签——如不接受请从 drop 里删掉它`
+                )
+            }
+        }
+        if (drop.length) notes.push(`丢弃演示/样板内容带来的噪声标签：${drop.join(", ")}`)
+    }
+
+    return {
+        $comment:
+            "标签别名（Aether CMS）：aliases 为「别名 → 规范名」，drop 为整条丢弃的标签。" +
+            "放到 <实例>/content/data/tag-aliases.json 后 2 秒内生效（无需重启），删除该文件即完全回滚。",
+        generatedAt: new Date().toISOString(),
+        generatedBy: "tools/tag-audit.mjs --emit-aliases",
+        source: source.label,
+        aliases,
+        drop,
+        notes,
+    }
+}
+
+/** 给多站点情况生成安全的文件名后缀。 */
+function hostSlug(label) {
+    return String(label)
+        .replace(/^https?:\/\//, "")
+        .replace(/^dir:/, "local-")
+        .replace(/[^a-zA-Z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60)
+}
+
+// --------------------------------------------------------------------------
 // 报告输出
 // --------------------------------------------------------------------------
 function printReport(source, report) {
@@ -482,7 +573,7 @@ const reports = []
 for (const source of sources) {
     const report = analyze(source)
     reports.push({ source, report })
-    if (!args.json) printReport(source, report)
+    if (!args.json && !args.quiet) printReport(source, report)
 }
 
 if (args.json) {
@@ -513,5 +604,37 @@ if (args.json) {
 if (args.emitPlan) {
     const plan = reports.length === 1 ? buildPlan(reports[0].source, reports[0].report) : { generatedAt: new Date().toISOString(), sources: reports.map(({ source, report }) => buildPlan(source, report)) }
     writeFileSync(args.emitPlan, `${JSON.stringify(plan, null, 2)}\n`, "utf8")
-    if (!args.json) console.log(`\n  合并方案已写入: ${resolve(args.emitPlan)}（人工确认后再执行合并；当前还没有执行工具会读取它）`)
+    if (!args.json) console.log(`\n  合并方案已写入: ${resolve(args.emitPlan)}（人工确认后交给 tools/tag-merge.mjs 执行）`)
+}
+
+if (args.emitAliases) {
+    const written = []
+    for (const { source, report } of reports) {
+        const payload = buildAliasFile(source, report, {
+            includeReview: args.aliasesIncludeReview,
+            dropDemo: args.aliasesDropDemo,
+        })
+        let target = resolve(args.emitAliases)
+        if (reports.length > 1) {
+            const at = target.lastIndexOf(".")
+            const stem = at > 0 ? target.slice(0, at) : target
+            const ext = at > 0 ? target.slice(at) : ".json"
+            target = `${stem}.${hostSlug(source.label)}${ext}`
+        }
+        writeFileSync(target, `${JSON.stringify(payload, null, 2)}\n`, "utf8")
+        written.push({ target, payload })
+    }
+    if (!args.json) {
+        for (const { target, payload } of written) {
+            const aliasCount = Object.keys(payload.aliases).length
+            console.log(
+                `\n  别名文件已写入: ${target}\n` +
+                    `    合并 ${aliasCount} 条${aliasCount ? `（${Object.entries(payload.aliases).map(([a, b]) => `${a}→${b}`).join(", ")}）` : ""}` +
+                    `${payload.drop.length ? `，丢弃 ${payload.drop.length} 个：${payload.drop.join(", ")}` : ""}`
+            )
+            if (!args.aliasesIncludeReview) console.log("    （语义近似候选未包含：需要的话加 --aliases-include-review）")
+            if (!args.aliasesDropDemo) console.log("    （演示噪声标签未丢弃：需要的话加 --aliases-drop-demo）")
+            console.log("    用法：把它复制为 <实例>/content/data/tag-aliases.json 即生效（2 秒内，无需重启；删除即回滚）")
+        }
+    }
 }
