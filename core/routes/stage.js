@@ -230,6 +230,7 @@ export function setupStageRoutes(app, systems) {
                 active.name,
                 { compare: compareStageNames }
             )
+            const categoryEntries = ensureActiveChip(countCategories(allPosts), categoryFilter)
             const rows = [
                 {
                     label: "学段",
@@ -246,17 +247,20 @@ export function setupStageRoutes(app, systems) {
                             : "/stage",
                     }),
                 },
-                {
+            ]
+            // 文章都没写分类时，不渲染一行只有「全部」的空白筛选
+            if (categoryEntries.length) {
+                rows.push({
                     label: "分类",
                     chips: buildChips({
-                        entries: ensureActiveChip(countCategories(allPosts), categoryFilter),
+                        entries: categoryEntries,
                         activeSlug: categoryFilter ? slugify(categoryFilter) : "",
                         hrefFor: (entry) =>
                             buildTaxonomyUrl(stageBase, { category: entry.name, tag: tagFilter }),
                         allHref: buildTaxonomyUrl(stageBase, { tag: tagFilter }),
                     }),
-                },
-            ]
+                })
+            }
             if (tagFilter) {
                 rows.push({
                     label: "标签",

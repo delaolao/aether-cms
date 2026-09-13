@@ -440,18 +440,21 @@ export function setupTaxonomyRoutes(app, systems) {
             const stageEntries = ensureActiveChip(countStages(allTaxonomyPosts), stageFilter, {
                 compare: compareStageNames,
             })
-            const filterRows = [
-                {
-                    label: "学段",
-                    chips: buildChips({
-                        entries: stageEntries,
-                        activeSlug: stageFilter ? slugify(stageFilter) : "",
-                        hrefFor: (entry) =>
-                            buildTaxonomyUrl(categoryBase, { stage: entry.name, tag: tagFilter }),
-                        allHref: buildTaxonomyUrl(categoryBase, { tag: tagFilter }),
-                    }),
-                },
-            ]
+            // 整站都没用学段时，不要渲染一行只有「全部」的空白筛选
+            const filterRows = stageEntries.length
+                ? [
+                      {
+                          label: "学段",
+                          chips: buildChips({
+                              entries: stageEntries,
+                              activeSlug: stageFilter ? slugify(stageFilter) : "",
+                              hrefFor: (entry) =>
+                                  buildTaxonomyUrl(categoryBase, { stage: entry.name, tag: tagFilter }),
+                              allHref: buildTaxonomyUrl(categoryBase, { tag: tagFilter }),
+                          }),
+                      },
+                  ]
+                : []
             if (tagFilter) {
                 const tagCount = filterPostsByTag(allTaxonomyPosts, tagFilter).length
                 filterRows.push({
