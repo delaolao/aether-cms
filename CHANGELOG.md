@@ -4,6 +4,43 @@
 
 > 版本号遵循语义化。
 
+## [0.15.5] - 2026-09-13
+
+### ✨ 分类 × 学段的交叉筛选（「心理微课里所有小学文章」有 URL 了）
+
+`/category/心理微课` 与 `/stage/小学` 各自只能看一个维度，「列出某分类下某学段的文章」原先无法用 URL 表达（只能进搜索页敲关键词）。现在两个页面互为镜像，**参数名就是维度名**：
+
+```
+/category/心理微课?stage=小学          ← 分类页里筛学段
+/stage/小学?category=心理微课          ← 学段页里筛分类（与上一行等价）
+/category/心理微课?stage=小学&tag=情绪管理    ← 再叠加标签（AND）
+/stage/小学?category=心理微课&tag=情绪管理
+```
+
+两个页面都会多出一条**筛选面板**（复用标签工作台的样式与注入通道 `res.tagWorkbenchHtml`，因此不需要改任何主题模板）：分类页给出「学段」行（本分类下各学段篇数），学段页给出「学段 + 分类」两行，标签筛选生效时再加一行「标签」，右上角有「清除筛选」。
+
+细节：
+
+- **分页保留筛选**：`core/utils/pagination-utils.js` 的 `generatePaginationUrls` / `enhancedFormatPagination` 新增 `extraQuery`，动态站点的分页链接从 `?page=2` 变为 `?page=2&stage=小学`（原先分页会丢掉筛选条件）。
+- **页头/标题**：`Category: 技术 · 小学`，`taxonomyTerm` 与 `<title>` 同步。
+- **空白组合不假装失效**：某分类下没有该学段时，该学段 chip 仍以 `active` + 计数 `0` 显示（`ensureActiveChip`），列表显示「No posts found」而不是静默回到全量。
+- **301 规范化保留筛选**：`/stage/%E5%B0%8F%E5%AD%A6?category=技术&page=2` → `/stage/小学?page=2&category=技术`。
+- **去掉搜索空态的原地打转**：搜索页无关键词时，标签/分类 chips 从 `?tag=`/`?category=`（点进去还是同一页）改为直达 `/tag/:slug`、`/category/:slug`（学段在 0.15.4 已如此）。
+- 新增 `core/utils/taxonomy-filter-utils.js`：`postStageOf` / `postCategoryOf` / `postTagsOf`、`filterPostsByStage|Category|Tag`、`countStages` / `countCategories`、`ensureActiveChip`、`buildTaxonomyUrl`、`buildChips`、`buildCrossFilterBarHtml`（纯函数，路由只负责取参数与渲染）。
+
+本地验证（`PORT=8095`，临时给 5 篇演示文章加学段、验证后回滚；演示内容为「技术」7 篇 +「知识管理」3 篇）：
+
+| 操作 | 结果 |
+|---|---|
+| `/category/技术` | 共 7 篇，面板出现「学段」行 |
+| `/category/技术?stage=小学` | 共 2 篇（Markdown 语法速查 / KaTeX 数学公式渲染） |
+| `/stage/小学?category=技术` | 共 2 篇（同上，两个方向一致） |
+| `/category/技术?stage=高中` | 共 0 篇 + 「No posts found」，`高中` chip 仍为选中态 |
+| `/stage/小学?category=技术&tag=markdown` | 三行面板（学段/分类/标签），共 2 篇 |
+| 分页 | `?pageSize=1` 时下一页 = `?page=2&stage=小学`（学段页为 `?page=2&category=技术`），第 2 页仍是筛选内内容 |
+| 301 | `/stage/小 学?category=技术&page=2` → `/stage/小学?page=2&category=技术` |
+| 两套主题 | `default` 与 `ember` 均渲染出面板与正确卡片数（7 / 2 / 2） |
+
 ## [0.15.4] - 2026-09-13
 
 ### ✨ 学段（Stage）维度的前端入口补齐

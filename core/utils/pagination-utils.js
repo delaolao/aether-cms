@@ -1,4 +1,28 @@
 /**
+ * Normalizes the `extraQuery` option (object or pre-built string) into a
+ * `&a=b` suffix that can be appended after `?page=N`, so cross filters
+ * (`?stage=小学`) survive pagination.
+ * @param {Object|string} extraQuery
+ * @returns {string} '' or '&key=value&…'
+ */
+function normalizeExtraQuery(extraQuery) {
+    if (!extraQuery) return ""
+    let search
+    if (typeof extraQuery === "string") {
+        const text = extraQuery.replace(/^[?&]+/, "")
+        if (!text) return ""
+        return `&${text}`
+    }
+    search = new URLSearchParams()
+    for (const [key, value] of Object.entries(extraQuery)) {
+        const text = String(value ?? "").trim()
+        if (text) search.set(key, text)
+    }
+    const qs = search.toString()
+    return qs ? `&${qs}` : ""
+}
+
+/**
  * Generates pagination URLs based on context and pagination data
  * @param {Object} params - Parameters for URL generation
  * @param {boolean} params.isGenerateStatic - Whether generating for static site
@@ -6,17 +30,21 @@
  * @param {string} params.slug - The slug for the current content
  * @param {Object} params.pagination - The pagination data object
  * @param {boolean} params.cleanUrls - Whether to use clean URLs (no .html extension)
+ * @param {Object|string} [params.extraQuery] - Extra query params to keep on every page link
  * @returns {Object} Object containing all pagination URLs
  */
-export function generatePaginationUrls({ isGenerateStatic, contentType, slug, pagination, cleanUrls = true }) {
+export function generatePaginationUrls({ isGenerateStatic, contentType, slug, pagination, cleanUrls = true, extraQuery = "" }) {
     // For dynamic sites, we just use query parameters
     if (!isGenerateStatic) {
+        // Cross filters ride along so page 2 of `/category/x?stage=y` stays filtered.
+        const suffix = normalizeExtraQuery(extraQuery)
+        const at = (page) => `?page=${page}${suffix}`
         return {
-            first: `?page=1`,
-            prev: pagination.prevPage ? `?page=${pagination.prevPage}` : null,
-            current: `?page=${pagination.currentPage}`,
-            next: pagination.nextPage ? `?page=${pagination.nextPage}` : null,
-            last: `?page=${pagination.totalPages}`,
+            first: at(1),
+            prev: pagination.prevPage ? at(pagination.prevPage) : null,
+            current: at(pagination.currentPage),
+            next: pagination.nextPage ? at(pagination.nextPage) : null,
+            last: at(pagination.totalPages),
         }
     }
 

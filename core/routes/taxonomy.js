@@ -2,8 +2,17 @@ import { enhancedFormatPagination } from "../utils/pagination-utils.js"
 import { prepareTemplateData, processTemplateData, handle404 } from "../utils/route-utils.js"
 import { resolveTemplatePath, applyTemplateMetadata } from "../utils/template-utils.js"
 import { getTagFrequency } from "../utils/tag-cloud-utils.js"
-import { slugify } from "../lib/content/utils/content-utils.js"
+import { slugify, normalizeStageName, compareStageNames } from "../lib/content/utils/content-utils.js"
 import { resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
+import {
+    buildChips,
+    buildCrossFilterBarHtml,
+    buildTaxonomyUrl,
+    countStages,
+    ensureActiveChip,
+    filterPostsByStage,
+    filterPostsByTag,
+} from "../utils/taxonomy-filter-utils.js"
 
 /**
  * Tag workbench helpers — shared by the single-tag route (/tag/:slug) and the
@@ -394,13 +403,23 @@ export function setupTaxonomyRoutes(app, systems) {
                 return handle404(res, req, themeManager, settingsService)
             }
 
+            // --- 交叉筛选：/category/心理微课?stage=小学[&tag=…] ---
+            const rawStage = decodeSegment(req.queryParams?.get("stage") || "")
+            const stageFilter = normalizeStageName(rawStage)
+            const rawTag = decodeSegment(req.queryParams?.get("tag") || "")
+            const tagFilter = rawTag ? resolveTagIdentifier(rawTag) || rawTag : ""
+
+            let filteredPosts = allTaxonomyPosts
+            if (stageFilter) filteredPosts = filterPostsByStage(filteredPosts, stageFilter)
+            if (tagFilter) filteredPosts = filterPostsByTag(filteredPosts, tagFilter)
+
             // Get site settings
             const siteSettings = await contentManager.getSiteSettings()
 
             // Handle pagination
             const page = parseInt(req.queryParams?.get("page") || "1")
             const perPage = parseInt(req.queryParams?.get("pageSize") || siteSettings.postsPerPage || "10")
-            const pagination = await app.paginateMarkdownFiles(allTaxonomyPosts, page, perPage)
+            const pagination = await app.paginateMarkdownFiles(filteredPosts, page, perPage)
 
             // Convert frontmatter to metadata for all posts
             const paginatedPosts = contentManager.renameKey(pagination.data, "frontmatter", "metadata")
@@ -416,20 +435,67 @@ export function setupTaxonomyRoutes(app, systems) {
                 }
             }
 
+            // 交叉筛选面板：学段行（本分类下各学段的篇数）+ 当前标签筛选
+            const categoryBase = `/category/${encodeURIComponent(slug)}`
+            const stageEntries = ensureActiveChip(countStages(allTaxonomyPosts), stageFilter, {
+                compare: compareStageNames,
+            })
+            const filterRows = [
+                {
+                    label: "学段",
+                    chips: buildChips({
+                        entries: stageEntries,
+                        activeSlug: stageFilter ? slugify(stageFilter) : "",
+                        hrefFor: (entry) =>
+                            buildTaxonomyUrl(categoryBase, { stage: entry.name, tag: tagFilter }),
+                        allHref: buildTaxonomyUrl(categoryBase, { tag: tagFilter }),
+                    }),
+                },
+            ]
+            if (tagFilter) {
+                const tagCount = filterPostsByTag(allTaxonomyPosts, tagFilter).length
+                filterRows.push({
+                    label: "标签",
+                    chips: [
+                        {
+                            name: `#${tagFilter}`,
+                            href: buildTaxonomyUrl(categoryBase, { stage: stageFilter }),
+                            count: tagCount,
+                            active: true,
+                        },
+                    ],
+                })
+            }
+            res.tagWorkbenchHtml = buildCrossFilterBarHtml({
+                title: "筛选",
+                note: `共 ${filteredPosts.length} 篇`,
+                rows: filterRows,
+                clearHref: stageFilter || tagFilter ? categoryBase : "",
+            })
+
+            const displayTerm = stageFilter ? `${slug} · ${stageFilter}` : slug
+
             // Build base template data
             let templateData = await prepareTemplateData(req, themeManager, siteSettings, {
                 posts: paginatedPosts,
                 fileType: "category",
                 taxonomyType: "category",
-                taxonomyTerm: slug,
+                taxonomyTerm: displayTerm,
                 pagination: enhancedFormatPagination(pagination, {
                     isGenerateStatic: false,
                     contentType: "category",
                     slug: slug,
                     cleanUrls: false,
+                    // 分页时保留交叉筛选
+                    extraQuery: { stage: stageFilter, tag: tagFilter },
                 }),
                 taxonomyRoute: true,
-                categoryName: slug,
+                categoryName: displayTerm,
+                // 交叉筛选上下文（主题可选使用）
+                crossFilterActive: Boolean(stageFilter || tagFilter),
+                crossFilterStage: stageFilter,
+                crossFilterTag: tagFilter,
+                crossFilterCount: filteredPosts.length,
                 year: new Date().getFullYear(),
             })
 
@@ -447,8 +513,8 @@ export function setupTaxonomyRoutes(app, systems) {
                 contentManager,
                 templateData,
                 taxonomyType: "category",
-                taxonomyTerm: slug,
-                itemCount: allTaxonomyPosts.length,
+                taxonomyTerm: displayTerm,
+                itemCount: filteredPosts.length,
                 page,
             })
 

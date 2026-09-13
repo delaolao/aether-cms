@@ -1,5 +1,5 @@
 /**
- * 学段路由 — GET /stage/:name
+ * 学段路由 — GET /stage、GET /stage/:name
  *
  * 「学段」（小学 / 初中 / 高中 …）是**单值维度**，与 `tags` 分开：
  * 混在标签里会让标签云既不像分类也不像关键词（线上实测：`小学(7)/初中(3)/高中(3)`
@@ -9,12 +9,25 @@
  * 所以文章卡片和标签页长得一样；筛选条通过全局渲染钩子注入
  * （`res.tagWorkbenchHtml`），因此**不需要改任何主题模板**就能在所有主题上出现。
  *
+ * 交叉筛选：`/stage/小学?category=心理微课[&tag=…]`
+ * （镜像入口是 `/category/心理微课?stage=小学`）。
+ *
  * 旧内容不受影响：没有 `stage` 字段的文章只是不出现在任何学段页里。
  */
 import { prepareTemplateData, processTemplateData, handle404 } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
 import { enhancedFormatPagination } from "../utils/pagination-utils.js"
-import { normalizeStageName, slugify } from "../lib/content/utils/content-utils.js"
+import { normalizeStageName, compareStageNames, slugify } from "../lib/content/utils/content-utils.js"
+import { resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
+import {
+    buildChips,
+    buildCrossFilterBarHtml,
+    buildTaxonomyUrl,
+    countCategories,
+    ensureActiveChip,
+    filterPostsByCategory,
+    filterPostsByTag,
+} from "../utils/taxonomy-filter-utils.js"
 
 // litenode 不解析路由参数里的百分号编码
 function decodeSegment(value) {
@@ -24,27 +37,6 @@ function decodeSegment(value) {
     } catch {
         return String(value)
     }
-}
-
-/** 学段筛选条（沿用标签筛选条的样式，class 里保留 tag-filter-bar 以便复用 CSS） */
-function buildStageBarHtml({ stages, active, total }) {
-    const chips = [
-        `<a class="filter-chip${active ? "" : " active"}" href="/stage">全部 ${stages.reduce((sum, s) => sum + s.count, 0)}</a>`,
-        ...stages.map(
-            (stage) =>
-                `<a class="filter-chip${active && active.key === stage.key ? " active" : ""}" href="/stage/${encodeURIComponent(
-                    stage.slug
-                )}">${stage.name} <span class="chip-count">${stage.count}</span></a>`
-        ),
-    ].join("")
-
-    return `<div class="tag-filter-bar stage-filter-bar">
-  <div class="tag-filter-head">
-    <span class="tag-filter-title">按学段浏览</span>
-    <span class="tag-filter-note">共 ${total} 篇</span>
-  </div>
-  <div class="tag-filter-row"><span class="tag-filter-label">学段</span><div class="tag-filter-chips">${chips}</div></div>
-</div>`
 }
 
 /** 给卡片挂上可点击的标签 chips（主题 collection.html 会渲染 metadata.tagsView） */
@@ -63,6 +55,32 @@ function attachTagsView(posts) {
             active: false,
         }))
     }
+}
+
+/** 学段筛选条（沿用标签筛选条的样式，class 里保留 tag-filter-bar 以便复用 CSS） */
+function buildStageBarHtml({ stages, active, total, categoryFilter = "", tagFilter = "" }) {
+    const base = "/stage"
+    const chips = buildChips({
+        entries: stages,
+        activeSlug: active ? active.slug : "",
+        hrefFor: (stage) =>
+            buildTaxonomyUrl(`${base}/${encodeURIComponent(stage.slug)}`, {
+                category: categoryFilter,
+                tag: tagFilter,
+            }),
+        // 「全部」：有分类筛选时回到该分类页（那里才是「不限学段」的自然入口）
+        allHref: categoryFilter
+            ? buildTaxonomyUrl(`/category/${encodeURIComponent(categoryFilter)}`, { tag: tagFilter })
+            : base,
+    })
+
+    return buildCrossFilterBarHtml({
+        title: "按学段浏览",
+        note: `共 ${total} 篇`,
+        rows: [{ label: "学段", chips }],
+        clearHref: categoryFilter || tagFilter ? base : "",
+        extraClass: "stage-filter-bar",
+    })
 }
 
 export function setupStageRoutes(app, systems) {
@@ -98,7 +116,7 @@ export function setupStageRoutes(app, systems) {
         }
     })
 
-    // GET /stage/:name — 某个学段下的文章
+    // GET /stage/:name — 某个学段下的文章（可用 ?category= / ?tag= 交叉筛选）
     app.get("/stage/:name", async (req, res) => {
         try {
             const requested = decodeSegment(String(req.params.name || ""))
@@ -109,14 +127,23 @@ export function setupStageRoutes(app, systems) {
                 return handle404(res, req, themeManager, settingsService)
             }
 
-            // 规范链接：/stage/%E5%B0%8F%E5%AD%A6 → /stage/小学（301）
+            // 交叉筛选参数：/stage/小学?category=心理微课[&tag=…]
+            const rawCategory = decodeSegment(req.queryParams?.get("category") || "").trim()
+            const rawTag = decodeSegment(req.queryParams?.get("tag") || "")
+            const tagFilter = rawTag ? resolveTagIdentifier(rawTag) || rawTag : ""
+
+            // 规范链接：/stage/%E5%B0%8F%E5%AD%A6 → /stage/小学（301，保留筛选与分页）
             const canonicalSlug = active.slug
             if (slugify(requested) !== canonicalSlug) {
-                const page = req.queryParams?.get("page")
-                return res.redirect(
-                    `/stage/${encodeURIComponent(canonicalSlug)}${page ? `?page=${encodeURIComponent(page)}` : ""}`,
-                    301
-                )
+                const query = new URLSearchParams()
+                for (const key of ["page", "pageSize"]) {
+                    const value = req.queryParams?.get(key)
+                    if (value) query.set(key, value)
+                }
+                if (rawCategory) query.set("category", rawCategory)
+                if (tagFilter) query.set("tag", tagFilter)
+                const qs = query.toString()
+                return res.redirect(`/stage/${encodeURIComponent(canonicalSlug)}${qs ? `?${qs}` : ""}`, 301)
             }
 
             const allPosts = await contentManager.getPostsByStage(active.name, {
@@ -125,10 +152,23 @@ export function setupStageRoutes(app, systems) {
                 previewLength: 200,
             })
 
+            // 分类交叉筛选（分类名大小写/空白不敏感）
+            const categoryFilter = rawCategory
+                ? (countCategories(allPosts).find(
+                      (entry) =>
+                          entry.name.toLowerCase() === rawCategory.toLowerCase() ||
+                          entry.slug === slugify(rawCategory)
+                  )?.name ?? rawCategory)
+                : ""
+
+            let filteredPosts = allPosts
+            if (categoryFilter) filteredPosts = filterPostsByCategory(filteredPosts, categoryFilter)
+            if (tagFilter) filteredPosts = filterPostsByTag(filteredPosts, tagFilter)
+
             const siteSettings = await contentManager.getSiteSettings()
             const page = parseInt(req.queryParams?.get("page") || "1", 10) || 1
             const perPage = parseInt(req.queryParams?.get("pageSize") || siteSettings.postsPerPage || "10", 10)
-            const pagination = await app.paginateMarkdownFiles(allPosts, page, perPage)
+            const pagination = await app.paginateMarkdownFiles(filteredPosts, page, perPage)
             const paginatedPosts = contentManager.renameKey(pagination.data, "frontmatter", "metadata")
             attachTagsView(paginatedPosts)
 
@@ -142,11 +182,14 @@ export function setupStageRoutes(app, systems) {
                 }
             }
 
+            const displayTerm = categoryFilter ? `${active.name} · ${categoryFilter}` : active.name
+            const stageBase = `/stage/${encodeURIComponent(canonicalSlug)}`
+
             const templateData = await prepareTemplateData(req, themeManager, siteSettings, {
                 posts: paginatedPosts,
                 fileType: "stage",
                 taxonomyType: "学段",
-                taxonomyTerm: active.name,
+                taxonomyTerm: displayTerm,
                 taxonomyRoute: true,
                 stageRoute: true,
                 stageName: active.name,
@@ -156,6 +199,10 @@ export function setupStageRoutes(app, systems) {
                 // 主题的 collection.html 用它区分标题分支
                 tagName: "",
                 categoryName: "",
+                crossFilterActive: Boolean(categoryFilter || tagFilter),
+                crossFilterCategory: categoryFilter,
+                crossFilterTag: tagFilter,
+                crossFilterCount: filteredPosts.length,
                 pagination:
                     pagination.total_pages > 0
                         ? enhancedFormatPagination(pagination, {
@@ -163,6 +210,8 @@ export function setupStageRoutes(app, systems) {
                               contentType: "stage",
                               slug: canonicalSlug,
                               cleanUrls: false,
+                              // 分页时保留交叉筛选
+                              extraQuery: { category: categoryFilter, tag: tagFilter },
                           })
                         : null,
                 year: new Date().getFullYear(),
@@ -175,11 +224,58 @@ export function setupStageRoutes(app, systems) {
                 isTaxonomy: true,
             })
 
-            // 学段筛选条（全局渲染钩子会插到文章列表上方）
-            res.tagWorkbenchHtml = buildStageBarHtml({
-                stages,
-                active,
-                total: templateData.stageTotal,
+            // 筛选面板（全局渲染钩子会插到文章列表上方）
+            const stageEntries = ensureActiveChip(
+                stages.map((stage) => ({ ...stage, slug: stage.slug, name: stage.name, count: stage.count })),
+                active.name,
+                { compare: compareStageNames }
+            )
+            const rows = [
+                {
+                    label: "学段",
+                    chips: buildChips({
+                        entries: stageEntries,
+                        activeSlug: canonicalSlug,
+                        hrefFor: (stage) =>
+                            buildTaxonomyUrl(`/stage/${encodeURIComponent(stage.slug)}`, {
+                                category: categoryFilter,
+                                tag: tagFilter,
+                            }),
+                        allHref: categoryFilter
+                            ? buildTaxonomyUrl(`/category/${encodeURIComponent(categoryFilter)}`, { tag: tagFilter })
+                            : "/stage",
+                    }),
+                },
+                {
+                    label: "分类",
+                    chips: buildChips({
+                        entries: ensureActiveChip(countCategories(allPosts), categoryFilter),
+                        activeSlug: categoryFilter ? slugify(categoryFilter) : "",
+                        hrefFor: (entry) =>
+                            buildTaxonomyUrl(stageBase, { category: entry.name, tag: tagFilter }),
+                        allHref: buildTaxonomyUrl(stageBase, { tag: tagFilter }),
+                    }),
+                },
+            ]
+            if (tagFilter) {
+                rows.push({
+                    label: "标签",
+                    chips: [
+                        {
+                            name: `#${tagFilter}`,
+                            href: buildTaxonomyUrl(stageBase, { category: categoryFilter }),
+                            count: filterPostsByTag(allPosts, tagFilter).length,
+                            active: true,
+                        },
+                    ],
+                })
+            }
+            res.tagWorkbenchHtml = buildCrossFilterBarHtml({
+                title: "筛选",
+                note: `共 ${filteredPosts.length} 篇`,
+                rows,
+                clearHref: categoryFilter || tagFilter ? stageBase : "",
+                extraClass: "stage-filter-bar",
             })
 
             const processed = processTemplateData(hookSystem, templateData, "tag.html")

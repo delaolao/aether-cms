@@ -361,7 +361,7 @@ function emptyStateHtml({ docs, params, tagFacets, categoryFacets, stageFacets }
           ? `<div class="search-facet"><span class="search-facet-label">热门标签</span><div class="search-facet-chips">${hotTags
                 .map(
                     (entry) =>
-                        `<a class="filter-chip" href="${escapeHtml(searchUrl(params, { tag: entry.slug, page: 1 }))}">${escapeHtml(
+                        `<a class="filter-chip" href="/tag/${encodeURIComponent(entry.slug)}">${escapeHtml(
                             entry.name
                         )} <span class="chip-count">${entry.count}</span></a>`
                 )
@@ -374,7 +374,7 @@ function emptyStateHtml({ docs, params, tagFacets, categoryFacets, stageFacets }
                 .slice(0, 8)
                 .map(
                     (entry) =>
-                        `<a class="filter-chip" href="${escapeHtml(searchUrl(params, { category: entry.slug, page: 1 }))}">${escapeHtml(
+                        `<a class="filter-chip" href="/category/${encodeURIComponent(entry.slug)}">${escapeHtml(
                             entry.name
                         )} <span class="chip-count">${entry.count}</span></a>`
                 )
