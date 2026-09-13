@@ -66,7 +66,20 @@
   - 大小写/全半角/空格差异**已由保存时归一化处理**，不必写进别名表；别名表用于**语义**合并（`cpu` ↔ `中央处理器`）或指定规范写法（`MarkDown` → `markdown`）
   - 文件改动 **2 秒内自动生效**（按 mtime 重载），无需重启进程
   - 同名工具函数：`resolveTagName()` / `canonicalizeTagList()`（`core/lib/content/utils/tag-aliases.js`）
-- **已成文的合并流程**：`tag-merge-plan.json` 人工确认后，用合并工具安全改写内容文件（见 `tools/`，执行前自动备份）。
+- **执行合并（安全改写内容文件）**：确认方案后由 `tools/tag-merge.mjs` 落到内容文件上——
+  ```bash
+  node tools/tag-merge.mjs --plan tag-merge-plan.json                 # 预览（默认不写任何文件）
+  node tools/tag-merge.mjs --plan tag-merge-plan.json --apply         # 执行：备份 + 原子写 + 报告
+  node tools/tag-merge.mjs --plan tag-merge-plan.json --apply --also-alias   # 同时写别名表（老链接继续 301）
+  node tools/tag-merge.mjs --plan tag-merge-plan.json --apply --only auto,strong,review --drop-demo
+  node tools/tag-merge.mjs --from cpu,CPU --to 中央处理器 --apply      # 临时合并
+  node tools/tag-merge.mjs --rollback content/.tag-merge-backups/<时间戳>   # 整批回滚
+  ```
+  - **只改 frontmatter 的 `tags:` 一行**，文件其它部分逐字节不变（不是重新序列化整个 frontmatter）
+  - 每个改过的文件先备份到 `content/.tag-merge-backups/<时间戳>/`（含 `manifest.json` 与 `report.json`），一条 `--rollback` 命令整批还原
+  - 默认只执行 `autoMerge`（归一化重复）与 `strongMerge`（文章集合完全相同）；**`review`（语义近似）必须显式 `--only …,review`**，演示噪声标签要 `--drop-demo`
+  - 幂等（重复执行无改动）；冲突（同一标签映射到两个规范名）与环形映射会报错中止
+- **已成文的合并流程**：体检 → 导出方案 → 人工在 JSON 里删掉不认可的条目/调整方向 → `--apply` 执行 → 用标签页与搜索复查。
 
 ### 内容备份（`content/data` 与 `content/uploads`）
 
