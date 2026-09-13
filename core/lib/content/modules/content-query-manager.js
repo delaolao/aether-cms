@@ -13,6 +13,7 @@ import {
     markdownToPlainText,
     transformContentItems,
 } from "../utils/content-utils.js"
+import { canonicalizeTagList, resolveTagIdentifier } from "../utils/tag-aliases.js"
 
 export class ContentQueryManager {
     /**
@@ -478,7 +479,11 @@ export class ContentQueryManager {
 
             // AND-filter on the requested tag slugs (slug-normalised compare)
             if (slugs.length > 0) {
-                const slugSet = new Set(slugs)
+                // Requested slugs may be aliases (`/tag/cpu`) → resolve to the
+                // canonical name first, then compare on the canonical slug.
+                const slugSet = new Set(
+                    slugs.map((slug) => slugify(resolveTagIdentifier(slug) || slug))
+                )
                 filteredPosts = filteredPosts.filter((post) => {
                     const rawTags = post.frontmatter?.tags
                     const tagList = Array.isArray(rawTags)
@@ -486,7 +491,10 @@ export class ContentQueryManager {
                         : typeof rawTags === "string" && rawTags.trim() !== ""
                         ? rawTags.split(",").map((t) => t.trim())
                         : []
-                    const tagSlugSet = new Set(tagList.filter(Boolean).map((tag) => slugify(tag)))
+                    // Posts may carry any alias of the tag, so compare canonical slugs.
+                    const tagSlugSet = new Set(
+                        canonicalizeTagList(tagList.filter(Boolean)).map((tag) => slugify(tag))
+                    )
                     // Every requested tag must be present
                     for (const requested of slugSet) {
                         if (!tagSlugSet.has(requested)) return false

@@ -1,5 +1,6 @@
 import { resolveTemplatePath } from "./template-utils.js"
 import { markdownToPlainText } from "../lib/content/utils/content-utils.js"
+import { canonicalizeTagList } from "../lib/content/utils/tag-aliases.js"
 
 /**
  * SEO utilities for generating RSS and sitemap files with intelligent sitemap detection
@@ -43,9 +44,9 @@ async function analyzeSiteStructure({ posts, pages, themeManager }) {
                     : typeof post.frontmatter.tags === "string"
                     ? post.frontmatter.tags.split(",").map((t) => t.trim())
                     : []
-                tagArray.forEach((tag) => {
-                    if (tag) tags.add(tag)
-                })
+                // Canonical (alias-merged) tag names: sitemap/RSS must advertise
+                // the canonical /tag/<slug> URL, never an alias URL.
+                canonicalizeTagList(tagArray).forEach((tag) => tags.add(tag))
             }
         })
 
@@ -254,12 +255,10 @@ export async function generateRssXml({ posts, siteSettings, baseUrl, contentMana
                 ? tags.split(",").map((t) => t.trim())
                 : []
 
-            tagArray.forEach((tag) => {
-                if (tag) {
-                    categoriesXml += `        <category domain="${generateUrl(
-                        "/tag/" + contentManager.slugify(tag)
-                    )}">${tag}</category>\n`
-                }
+            canonicalizeTagList(tagArray).forEach((tag) => {
+                categoriesXml += `        <category domain="${generateUrl(
+                    "/tag/" + contentManager.slugify(tag)
+                )}">${tag}</category>\n`
             })
         }
 
@@ -480,9 +479,9 @@ export async function generateSitemapXml({ posts, pages, siteSettings, baseUrl, 
                     : typeof post.frontmatter.tags === "string"
                     ? post.frontmatter.tags.split(",").map((t) => t.trim())
                     : []
-                tagArray.forEach((tag) => {
-                    if (tag) tags.add(tag)
-                })
+                // Canonical (alias-merged) tag names: sitemap/RSS must advertise
+                // the canonical /tag/<slug> URL, never an alias URL.
+                canonicalizeTagList(tagArray).forEach((tag) => tags.add(tag))
             }
         })
 
@@ -688,9 +687,9 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
                     : typeof post.frontmatter.tags === "string"
                     ? post.frontmatter.tags.split(",").map((t) => t.trim())
                     : []
-                tagArray.forEach((tag) => {
-                    if (tag) tags.add(tag)
-                })
+                // Canonical (alias-merged) tag names: sitemap/RSS must advertise
+                // the canonical /tag/<slug> URL, never an alias URL.
+                canonicalizeTagList(tagArray).forEach((tag) => tags.add(tag))
             }
         })
 

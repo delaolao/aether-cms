@@ -24,6 +24,7 @@ import { configurePeerTube, warmCacheFromContent, extractPeerTubeIds, warmPeerTu
 import { buildSocialMeta, canonicalUrl, extractVideosFromHtml } from "./lib/media/social-meta.js"
 import { buildShareBar } from "./lib/media/share-bar.js"
 import { configureAttachments } from "./lib/media/attachments.js"
+import { configureTagAliases } from "./lib/content/utils/tag-aliases.js"
 
 // Import utilities
 import { handle404, handle500 } from "./utils/route-utils.js"
@@ -182,6 +183,10 @@ export async function setupApp(app, config) {
         uploadsDir: config.uploadsDir || "content/uploads",
         urlPrefix: "/content/uploads",
     })
+
+    // Tag aliases (content/data/tag-aliases.json): merges tags that mean the same
+    // thing (cpu / 中央处理器) at read time, without rewriting content files.
+    configureTagAliases({ dataDir: config.dataDir || "content/data" })
 
     // Warm covers in the background (never blocks startup) so list cards have
     // thumbnails without fetching during a request. New/updated posts warm too.

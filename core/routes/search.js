@@ -29,6 +29,7 @@
 import { prepareTemplateData, processTemplateData } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
 import { markdownToPlainText, slugify, truncateExcerpt } from "../lib/content/utils/content-utils.js"
+import { canonicalizeTagList, resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
 
 /** Results per page (SEARCH_PER_PAGE, default 12). */
 const PER_PAGE = Math.max(1, Number(process.env.SEARCH_PER_PAGE || 12) || 12)
@@ -144,7 +145,8 @@ function toDocument(item, type) {
         date: dateIso(rawDate),
         dateTime: dateValue(rawDate),
         category: fm.category || "",
-        tags: normalizeTagList(fm.tags),
+        // Alias-canonicalized so facets/links/counts merge (cpu + 中央处理器 → one entry)
+        tags: canonicalizeTagList(normalizeTagList(fm.tags)),
         author: fm.author || "",
         excerpt: fm.excerpt ? markdownToPlainText(String(fm.excerpt)) : truncateExcerpt(text, 200),
         text,
@@ -536,7 +538,11 @@ export function setupSearchRoute(app, systems) {
             // Apply the chips
             let filtered = entries
             if (params.type !== "all") filtered = filtered.filter((entry) => entry.doc.type === params.type)
-            if (params.tag) filtered = filtered.filter((entry) => entry.doc.tags.some((tag) => slugify(tag) === params.tag))
+            if (params.tag) {
+                // `?tag=cpu` must also match posts tagged 中央处理器 (alias table)
+                const canonicalTagSlug = slugify(resolveTagIdentifier(params.tag) || params.tag)
+                filtered = filtered.filter((entry) => entry.doc.tags.some((tag) => slugify(tag) === canonicalTagSlug))
+            }
             if (params.category) filtered = filtered.filter((entry) => slugify(entry.doc.category) === params.category)
 
             const sorted = [...filtered]

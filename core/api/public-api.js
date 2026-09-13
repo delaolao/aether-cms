@@ -16,6 +16,7 @@
  */
 
 import { detectMediaBadges, markdownToPlainText } from "../lib/content/utils/content-utils.js"
+import { canonicalizeTagList, resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
 import { extractFileDirectives } from "../lib/media/attachments.js"
 import { extractVideoDirectives, firstVideoCover } from "../lib/content/utils/content-utils.js"
 import { readPeerTubeMetaSync, extractPeerTubeId, getPeerTubeConfig } from "../lib/media/peertube.js"
@@ -70,7 +71,8 @@ function toPublicItem(post, { analyticsStore } = {}) {
         url: `/notes/${fm.slug || ""}`,
         excerpt,
         category: fm.category || "",
-        tags: normalizeTags(fm.tags),
+        // Alias-canonicalized: two names for the same concept are reported once.
+        tags: canonicalizeTagList(normalizeTags(fm.tags)),
         author: fm.author || "",
         publishDate: fm.publishDate || fm.createdAt || "",
         updatedAt: fm.updatedAt || "",
@@ -177,7 +179,12 @@ export function setupPublicApi(app, systems) {
             }
             let items = listCache.items
 
-            if (tag) items = items.filter((item) => item.tags.some((t) => t.toLowerCase() === tag))
+            if (tag) {
+                // Resolve the requested tag through the alias table so
+                // `?tag=cpu` also finds posts tagged `中央处理器`.
+                const canonicalTag = (resolveTagIdentifier(tag) || tag).toLowerCase()
+                items = items.filter((item) => item.tags.some((t) => String(t).toLowerCase() === canonicalTag))
+            }
             if (category) items = items.filter((item) => String(item.category).toLowerCase() === category)
             if (onlyVideo) items = items.filter((item) => item.media.hasVideo)
             if (onlyAttachment) items = items.filter((item) => item.media.hasAttachment)

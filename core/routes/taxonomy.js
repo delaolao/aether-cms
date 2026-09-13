@@ -3,6 +3,7 @@ import { prepareTemplateData, processTemplateData, handle404 } from "../utils/ro
 import { resolveTemplatePath, applyTemplateMetadata } from "../utils/template-utils.js"
 import { getTagFrequency } from "../utils/tag-cloud-utils.js"
 import { slugify } from "../lib/content/utils/content-utils.js"
+import { resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
 
 /**
  * Tag workbench helpers — shared by the single-tag route (/tag/:slug) and the
@@ -454,12 +455,28 @@ export function setupTaxonomyRoutes(app, systems) {
         if (slugs.length === 0) {
             return handle404(res, req, themeManager, settingsService)
         }
+        // Aliases are canonicalized: /tags/cpu/小学 → /tags/中央处理器/小学 (301)
+        // NOTE: litenode's signature is redirect(location, statusCode).
+        const canonical = slugs.map((slug) => slugify(resolveTagIdentifier(decodeSegment(slug)) || slug))
+        if (canonical.join("/") !== slugs.join("/")) {
+            return res.redirect(`/tags/${canonical.map((s) => encodeURIComponent(s)).join("/")}`, 301)
+        }
         return renderTagCombination(app, req, res, systems, slugs)
     })
 
     // Tag workbench entry: legacy single-tag route /tag/:slug — same UI, one
     // tag pre-selected. Backwards compatible with hashtags / tag-cloud links.
     app.get("/tag/:slug", async (req, res) => {
-        return renderTagCombination(app, req, res, systems, [req.params.slug])
+        const requested = decodeSegment(String(req.params.slug || ""))
+        // Alias → canonical name: keep old links working with a permanent
+        // redirect so search engines (and readers) land on the merged tag.
+        const canonicalName = resolveTagIdentifier(requested)
+        const canonicalSlug = canonicalName ? slugify(canonicalName) : ""
+        const requestedSlug = slugify(requested)
+        if (canonicalSlug && requestedSlug && canonicalSlug !== requestedSlug) {
+            const query = req.queryParams?.get("page") ? `?page=${encodeURIComponent(req.queryParams.get("page"))}` : ""
+            return res.redirect(`/tag/${encodeURIComponent(canonicalSlug)}${query}`, 301)
+        }
+        return renderTagCombination(app, req, res, systems, [requested])
     })
 }

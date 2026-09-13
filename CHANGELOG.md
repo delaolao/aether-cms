@@ -4,6 +4,34 @@
 
 > 版本号遵循语义化。
 
+## [0.12.0] - 2026-09-13
+
+### 🆕 标签别名归一（C：不改内容文件就能合并同义标签）
+
+- **`content/data/tag-aliases.json`**（新）：
+  ```json
+  { "aliases": { "cpu": "中央处理器", "MarkDown": "markdown" }, "drop": ["wiki", "graph"] }
+  ```
+  - `aliases`：别名 → 规范名；**忽略大小写/全半角/空格**匹配；支持链式（`a`→`b`→`c`，带环检测与 10 跳上限）；自映射被忽略（`自己: 自己` 不占条目）
+  - `drop`：整条丢弃的标签（例如上游演示文章带来的噪声），只影响展示与筛选，**内容文件不动**
+  - 改动 **2 秒内自动生效**（按 mtime 重载），无需重启进程；删掉文件即完全回滚
+  - 需要与保存时归一化区分：大小写/全半角/空格差异已由 `normalizeTagName` 处理，别名表用于**语义**合并或指定规范写法
+- **生效范围**（统一走 `resolveTagName` / `canonicalizeTagList`）：
+  - 标签云与 `/api/tags`（`core/utils/tag-cloud-utils.js`）——同义标签的计数合并成一条
+  - 标签页：`/tag/<别名>` **301 永久跳转**到规范标签；`/tag/<规范名>` 会列出携带**任意别名**的文章（`content-query-manager.getPostsByTagCombination` 按规范 slug 比较）
+  - 公开 API：返回的 `tags` 已归一，`?tag=<别名>` 与 `?tag=<规范名>` 结果一致
+  - 站内搜索：标签面（facets）与 `?tag=` 过滤
+  - sitemap 与 RSS：只出现规范标签 URL 与规范名，不再向搜索引擎暴露别名地址
+- **实现要点**：`core/lib/content/utils/tag-aliases.js` 是唯一的解析入口（模块内缓存 + mtime/TTL 重载），`core/app.js` 启动时 `configureTagAliases({ dataDir })`。保存路径**不做**别名改写——那是 `tag-merge.mjs`（B）的职责，需要人工确认合并方案。
+- **修复**：`res.redirect()` 在 LiteNode 中的签名是 `redirect(location, statusCode)`（URL 在前），最初写成 `redirect(301, url)` 会导致 `ERR_HTTP_INVALID_STATUS_CODE` 500；同时路由参数（`req.params.slug`）是**未解码**的百分号编码，必须先 `decodeURIComponent` 再解析别名，否则 `slugify('%E6%A6%82%E5%BF%B5')` 会把中文变成十六进制串。
+
+### ✅ 验证证据
+
+- 单元（38/38 通过，临时脚本已删）：精确/大小写/全半角/空格别名、链式 2 跳、自环不死循环、自映射忽略、`drop` 生效、slug 与名字双解析、`saveTagAliases` 原子写 + 备份 + 立即生效；`getTagFrequency` 把 `cpu` 与 `中央处理器` 合并为 `中央处理器(2)` 且 `wiki` 被 drop
+- 线上实测（本地实例，真实内容 `概念` ↔ `知识管理`，`drop: ["媒体"]`）：标签云从 15 条变 13 条、`「概念」` 消失、`/tag/概念` → **301 `/tag/知识管理`**、规范标签页 200 且包含原带 `概念` 的文章、`/api/public/posts?tag=概念` 与 `?tag=知识管理` 均为 2 条一致、`/tag/媒体` → 404、sitemap 13 条标签 URL 全部为规范名；**删除别名文件后 2 秒内完全恢复**（15 条标签、`/tag/概念` 回到 200）
+
+---
+
 ## [0.11.0] - 2026-09-13
 
 ### 🆕 标签治理与内容备份（第一批：A + E + D）

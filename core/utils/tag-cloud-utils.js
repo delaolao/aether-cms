@@ -1,8 +1,13 @@
 /**
  * Tag frequency utilities — shared by the tag-cloud route and the /api/tags
  * endpoint, so both report identical counts.
+ *
+ * Counts are computed over **canonical** tag names: `content/data/tag-aliases.json`
+ * merges concepts that exist under several names (`cpu` + `中央处理器`) without
+ * touching any content file.
  */
 import { slugify } from "../lib/content/utils/content-utils.js"
+import { canonicalizeTagList } from "../lib/content/utils/tag-aliases.js"
 
 /**
  * Normalize a frontmatter `tags` value into an array of tag strings.
@@ -41,7 +46,9 @@ export async function getTagFrequency(contentManager) {
 
     const counts = new Map()
     for (const post of posts) {
-        const tags = normalizeTags(post?.frontmatter?.tags)
+        // canonicalizeTagList applies normalization + the alias table, so two
+        // names for the same concept count as one tag.
+        const tags = canonicalizeTagList(normalizeTags(post?.frontmatter?.tags))
         for (const tag of tags) {
             counts.set(tag, (counts.get(tag) || 0) + 1)
         }
