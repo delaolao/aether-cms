@@ -4,6 +4,34 @@
 
 > 版本号遵循语义化。
 
+## [0.15.3] - 2026-09-13
+
+### 🐛 修复：同步清单漏掉 `core/utils/tag-cloud-utils.js`（工具侧，非应用代码）
+
+真机现象很迷惑：别名文件已放到 `content/data/tag-aliases.json`、`core/lib/content/utils/tag-aliases.js`
+与 `core/app.js` 里的导入都在服务器上，但 `/api/tags` 仍列出 `wiki`、`MarkDown` 仍是独立标签——
+看起来像「别名机制没生效」。
+
+根因：**同步清单漏了 `core/utils/tag-cloud-utils.js`**。别名归一是在多处分别调用的：
+
+| 位置 | 作用 | 当时是否已同步 |
+|---|---|---|
+| `core/routes/taxonomy.js` | 标签页按别名解析 / 301 | ✅ 已同步 |
+| `core/api/public-api.js` | 公开 API 的标签字段与 `?tag=` | ✅ 已同步 |
+| `core/routes/search.js` | 搜索的标签面 | ✅ 已同步 |
+| **`core/utils/tag-cloud-utils.js`** | **标签云与 `/api/tags` 的计数** | ❌ **漏了** |
+
+所以只有标签云与 `/api/tags` 还在按原始标签计数 —— 症状与「完全没生效」很像。
+
+- 修复：把它加进同步清单的 `$ModifiedFiles`（清单 70 → 71）
+- 新增**清单完整性自检**：同步脚本会用 git 历史（默认最近 7 天，`-ManifestCheckDays` 可调）
+  核对「改过的代码文件是否都在清单里」，缺项即在同步前告警并列出文件名；
+  `-StrictManifest` 可改成直接中止，`-SkipManifestCheck` 跳过。避免同类「漏同步一个文件、功能只生效一半」再次发生。
+- 说明：同步脚本 `tools/sync-today-to-server.ps1` 按设计**不入库**（内含私有服务器地址），
+  因此这两处改动只存在于操作者本机；本条目记录的是现象、根因与自检机制。
+
+---
+
 ## [0.15.2] - 2026-09-13
 
 ### 🆕 学段迁移后的旧链接兜底：`/tag/小学` → 301 `/stage/小学`
