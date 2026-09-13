@@ -180,7 +180,10 @@ for D in __INSTANCES__; do
 
     PORT=$(grep -E '^[[:space:]]*PORT=' "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d ' ')
     echo "  PORT         : ${PORT:-（未设置，默认 8080）}"
-    echo "  依赖         : node=$(command -v node || echo 无) openssl=$(command -v openssl || echo 无) curl=$(command -v curl || echo 无) sha256sum=$(command -v sha256sum || echo 无)"
+    echo "  依赖         : node=$(command -v node || echo 无) openssl=$(command -v openssl || echo 无) curl=$(command -v curl || echo 无) sha256sum=$(command -v sha256sum || echo 无) ss=$(command -v ss || echo 无)"
+    if command -v ss >/dev/null 2>&1; then
+        echo "  端口监听     : $(ss -ltnp 2>/dev/null | grep -E "[:.]${PORT:-8080}[[:space:]]" | head -n1 | tr -s ' ')"
+    fi
     echo "  数据文件     : users.json=$([ -f "$D/content/data/users.json" ] && echo 存在 || echo 缺失)  sessions.json=$([ -f "$D/content/data/sessions.json" ] && echo 存在 || echo 缺失)"
     echo "  分析盐         : $([ -f "$D/content/data/analytics/salt.txt" ] && echo 存在 || echo 缺失)"
     if command -v pm2 >/dev/null 2>&1; then
@@ -355,6 +358,16 @@ for D in __INSTANCES__; do
             SESS=$(tmux list-panes -a -F '#{session_name} #{pane_current_path}' 2>/dev/null | awk -v d="$D" '$2 == d { print $1; exit }')
             if [ -n "$SESS" ]; then
                 START_CMD=$(tmux display-message -p -t "$SESS" '#{pane_start_command}' 2>/dev/null)
+                # tmux 没有记录启动命令时（会话是默认 shell、命令是手敲的），
+                # 用「监听该端口的进程真实命令行」来还原它
+                LISTEN_PID=""
+                if command -v ss >/dev/null 2>&1; then
+                    LISTEN_PID=$(ss -ltnp 2>/dev/null | grep -E "[:.]$PORT[[:space:]]" | grep -oE 'pid=[0-9]+' | head -n1 | cut -d= -f2)
+                fi
+                if [ -z "$START_CMD" ] && [ -n "$LISTEN_PID" ] && [ -r "/proc/$LISTEN_PID/cmdline" ]; then
+                    START_CMD=$(tr '\0' ' ' < "/proc/$LISTEN_PID/cmdline" | sed 's/[[:space:]]*$//')
+                    echo "  启动命令来源: /proc/$LISTEN_PID/cmdline（当前正在运行的进程）"
+                fi
                 [ -z "$START_CMD" ] && START_CMD="node index.js"
                 echo "  重启: tmux 会话 [$SESS] 内 Ctrl-C 后重新执行: $START_CMD"
                 tmux send-keys -t "$SESS" C-c
