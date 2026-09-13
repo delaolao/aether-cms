@@ -9,6 +9,7 @@ import { setupThemeApi } from "./api/theme-api.js"
 import { setupUserApi } from "./api/user-api.js"
 import { setupStaticApi } from "./api/static-api.js"
 import { setupPublicApi } from "./api/public-api.js"
+import { setupMaintenanceApi } from "./api/maintenance-api.js"
 
 // Import core libraries
 import { ThemeManager } from "./lib/theme/theme-manager.js"
@@ -513,6 +514,14 @@ export async function setupApp(app, config) {
         signedCookies,
         analyticsStore,
         visitTracker,
+        // 实例路径：后台「维护」页需要知道自己在看哪一份 content/（三台实例各看各的）
+        paths: {
+            rootDir: config.rootDir || ".",
+            contentDir: config.contentDir || "content",
+            dataDir: config.dataDir || "content/data",
+            uploadsDir: config.uploadsDir || "content/uploads",
+            themesDir: config.themesDir || "content/themes",
+        },
     }
 
     // Set up frontend routes (home, content, taxonomy, custom)
@@ -528,6 +537,7 @@ export async function setupApp(app, config) {
     setupUserApi(app, systems)
     setupStaticApi(app, systems)
     setupPublicApi(app, systems) // /api/public/* + /oembed (read-only, CORS open)
+    setupMaintenanceApi(app, systems) // /api/maintenance/* (admin only: 只读体检 + 就地备份下载)
 
     // Set global not found handler
     app.notFound(async (req, res) => {

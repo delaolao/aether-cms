@@ -53,6 +53,10 @@
                 <!-- Analytics Content -->
                 {{#include("contents/analytics.html")}}
                 <!---->
+                {{#elseif dashboardMaintenance}}
+                <!-- Maintenance Content -->
+                {{#include("contents/maintenance.html")}}
+                <!---->
                 {{/if}}
             </main>
         </div>
@@ -116,6 +120,8 @@
         <script src="/assets/tag-cloud.js"></script>
         {{#elseif dashboardAnalytics}}
         <script src="/core/admin/static/js/analytics.js"></script>
+        {{#elseif dashboardMaintenance}}
+        <script src="/core/admin/static/js/maintenance.js"></script>
         {{/if}}
     </body>
 </html>

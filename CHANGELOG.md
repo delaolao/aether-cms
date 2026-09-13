@@ -4,6 +4,52 @@
 
 > 版本号遵循语义化。
 
+## [0.16.0] - 2026-09-13
+
+### ✨ 后台「系统维护」页 —— 只读体检（/aether/maintenance）
+
+**问题**：维护能力全在 `tools/` 下的 CLI 里，日常最常用的其实是「看一眼现在有没有问题」，而这部分本来完全只读——却仍要 ssh 上去或在本地跑脚本。而且"在哪运行"并不统一：
+
+| 工具 | 运行位置 | 为什么 |
+|---|---|---|
+| `tag-audit.mjs` | 本机或服务器 | 纯只读，可 `--dir content/data` 离线体检 |
+| `tag-merge.mjs` | 内容文件所在机器 | 要改写 `.md` |
+| `backup-content.ps1` | **本机** | ssh 上去打包 + scp 拉回本地（异地副本） |
+| `sync-today-to-server.ps1` | **本机** | 推文件到服务器 |
+| `rotate-security.ps1` | **服务器** | 改 `.env`、清会话、tmux 重启进程 |
+| `reset-admin-password.mjs` | **服务器** | 忘密码时也得能进，故意留在 Web 之外 |
+
+**方案**：把其中**只读**的那部分搬进后台，其余留在 CLI，并在页面上把边界写清楚（避免误以为"后台能维护一切"）。
+
+`/aether/maintenance` 一页给出 10 段体检：实例信息 · 内容体量 · 字段完整度 · 标签 · 学段 · 上传与附件 · 配置文件健康 · 备份现状 · 访问统计 · 安全自检，并把需要人看一眼的项汇总成「需要留意」清单（error / warn 分级）。
+
+实现要点：
+
+- `core/lib/maintenance/site-doctor.js`：纯函数式只读体检。**不写任何文件、不改配置、不 spawn 子进程**；唯一副作用是向 `127.0.0.1:<本进程端口>` 发几个自我请求，用于确认 `/.env`、`/content/data/users.json`、`/core/app.js` 仍然是 404（端口取自 `req.socket.localPort`）。每段独立 try/catch，单项失败降级为一条提醒而不影响整份报告。
+- `core/api/maintenance-api.js`：
+  - `GET /api/maintenance/report` — JSON 报告（`authenticate` 中间件保护）
+  - `GET /api/maintenance/backup.zip` — **就地**打包 `content/data` + `content/uploads` 供下载，内含 `BACKUP-MANIFEST.json`（与 CLI 备份口径对齐：实例路径、端口、PID、主题、条目清单与体量）；`?uploads=0|1`、`?analytics=0|1` 控制内容，默认不含 `analytics/views-*.jsonl`、超过 512 MB 直接拒绝并提示改用 CLI（adm-zip 在内存组装，且本页归档只是**就地临时副本**，异地留档仍需 `backup-content.ps1`）
+  - 归档名带端口（`aether-content-port8095-….zip`）—— 三台实例目录同名，只看目录名会分不清
+- `core/app.js`：`systems` 新增 `paths`（rootDir / contentDir / dataDir / uploadsDir / themesDir），维护页据此报告"自己看的是哪一份 content/"
+- 后台页：`views/contents/maintenance.html` + `static/js/maintenance.js`（仅「重新体检」用 JSON 接口刷新结论条，「下载备份」是纯链接、无 JS 也能用）+ `static/css/maintenance.css`，侧边栏新增「🔧 系统维护」（`nav_maintenance` / `maint_*` 中英双语）
+- **单实例视角**：三台实例是三个独立进程，本页只覆盖当前登录的这一台
+
+本地验证（`PORT=8095`，临时造了测试夹具，验证后已全部回滚）：
+
+| 场景 | 结果 |
+|---|---|
+| 报告生成 | 200，10 段齐全，耗时 73 ms |
+| 未登录访问 | 页面 302 → `/aether/login`；两个 API 均 401 |
+| 安全自检 | `/.env` 404 · `/content/data/users.json` 404 · `/core/app.js` 404 · `/` 200，全部符合预期 |
+| 配置文件健康 | settings/users/sessions/menu/login-attempts/tag-aliases 全部可解析 |
+| 孤儿上传 | 造 1 个未被引用的 png → 精确识别为 1（sidecar 不误报） |
+| 引用但缺失 | 造 2 处坏链 → 识别为 2，并列出引用它的文章标题 |
+| zip 归档 | `?uploads=1&analytics=0` → 18 个条目 + manifest（跳过 2 个 views 明细）；`?analytics=1` → 21 个；上传目录内容确实进包 |
+| 状态分级 | 造出 error 后 `ok=false`，页面状态条转为红色并列出 4 条待办 |
+| 学段分级 | 全站未用学段 → `info`（可选维度）；部分使用才 `warn` |
+
+> 本页做不到的事已在页面底部写明：跨机同步、异地留档、密钥轮换/重启进程、口令重置、一次覆盖三台实例——这些仍然必须走 CLI。
+
 ## [0.15.5] - 2026-09-13
 
 ### ✨ 分类 × 学段的交叉筛选（「心理微课里所有小学文章」有 URL 了）

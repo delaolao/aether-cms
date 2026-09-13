@@ -57,6 +57,13 @@
             nav_themes: "主题",
             nav_users: "用户",
             nav_settings: "设置",
+            nav_maintenance: "系统维护",
+
+            // maintenance
+            maint_refresh: "重新体检",
+            maint_download: "下载内容备份 (zip)",
+            maint_issues: "需要留意",
+            maint_noIssues: "未发现需要留意的项。",
 
             // analytics
             analytics_title: "访问统计",
@@ -482,6 +489,13 @@
             nav_themes: "Themes",
             nav_users: "Users",
             nav_settings: "Settings",
+            nav_maintenance: "Maintenance",
+
+            // maintenance
+            maint_refresh: "Re-run checks",
+            maint_download: "Download content backup (zip)",
+            maint_issues: "Needs attention",
+            maint_noIssues: "Nothing needs attention.",
 
             // analytics
             analytics_title: "Analytics",

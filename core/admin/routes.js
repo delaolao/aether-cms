@@ -411,6 +411,39 @@ export function setupAdminRoutes(app, systems) {
         }
     })
 
+    // ------------------------------------------------------------------
+    // 维护（只读体检）— /aether/maintenance
+    //
+    // 只读是刻意的：这个页面不写文件、不改配置、不 spawn 子进程，因此它无法替代
+    // tools/ 下的 CLI（跨机同步、密钥轮换、进程重启、异地留档仍必须走 ssh）。
+    // 页面本身会把这条边界写给使用者看，避免误以为"后台能维护一切"。
+    // ------------------------------------------------------------------
+    app.get("/aether/maintenance", authenticate, async (req, res) => {
+        try {
+            const { buildSiteReport } = await import("../lib/maintenance/site-doctor.js")
+            const report = await buildSiteReport({
+                paths: systems.paths,
+                contentManager,
+                analyticsStore,
+                req,
+            })
+
+            res.render("/core/admin/views/layouts/index.html", {
+                title: "Maintenance",
+                user: req.user,
+                dashboardMaintenance: true,
+                report,
+                // 供「重新体检」按钮使用的前端入口
+                reportApi: "/api/maintenance/report",
+                backupUrl: "/api/maintenance/backup.zip",
+                reportJson: JSON.stringify(report).replace(/</g, "\\u003c"),
+            })
+        } catch (error) {
+            console.error("Maintenance page error:", error)
+            res.status(500).html("<h1>Error</h1><p>无法生成体检报告</p>")
+        }
+    })
+
     // CSV export of the article view ranking for the selected range
     app.get("/aether/analytics/export.csv", authenticate, async (req, res) => {
         try {

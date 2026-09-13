@@ -1,0 +1,223 @@
+<div class="dashboard maintenance-dashboard">
+    <div class="maintenance-header">
+        <h1 data-i18n="nav_maintenance">系统维护</h1>
+        <div class="maintenance-actions">
+            <button type="button" class="btn-secondary" id="maintenance-refresh" data-i18n="maint_refresh">重新体检</button>
+            <a class="btn-secondary" id="maintenance-backup" href="{{ backupUrl }}?uploads=1&analytics=0" data-i18n="maint_download">
+                下载内容备份 (zip)
+            </a>
+            <a class="btn-secondary" href="{{ backupUrl }}?uploads=0&analytics=0">仅数据 (无上传)</a>
+        </div>
+    </div>
+
+    <p class="maintenance-note">
+        只读体检：本页不写入任何文件、不改配置、不重启进程。报告针对
+        <strong>当前登录的这一台实例</strong>（{{ report.instance.root }} · 端口 {{ report.instance.port }}）。
+    </p>
+
+    <div class="maint-status {{#if report.ok}}is-ok{{#else}}is-bad{{/if}}" id="maint-status">
+        <span class="maint-status-icon">{{#if report.ok}}✅{{#else}}⚠️{{/if}}</span>
+        <span class="maint-status-text">
+            {{#if report.ok}}未发现阻断性问题{{#else}}发现 {{ report.counts.error }} 项需要立即处理{{/if}}
+            {{#if report.counts.warn}}· {{ report.counts.warn }} 项提醒{{/if}}
+        </span>
+        <span class="maint-status-meta">生成于 {{ report.generatedAt }} · 耗时 {{ report.tookMs }} ms</span>
+    </div>
+
+    <div class="stat-cards maintenance-cards">
+        <div class="stat-card">
+            <div class="stat-value">{{ report.meta.tagTotal }}</div>
+            <div class="stat-label">唯一标签</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.meta.hapaxTotal }}</div>
+            <div class="stat-label">只出现 1 次</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.meta.stageTotal }}</div>
+            <div class="stat-label">学段数</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.meta.unsetStageTotal }}</div>
+            <div class="stat-label">未设学段</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ report.meta.mergeBackupCount }}</div>
+            <div class="stat-label">标签合并备份</div>
+        </div>
+    </div>
+
+    {{#if report.issues.length}}
+    <div class="info-card">
+        <h2 data-i18n="maint_issues">需要留意</h2>
+        <ul class="maint-issues">
+            {{#each report.issues}}
+            <li class="maint-issue level-{{ level }}">
+                <span class="maint-issue-badge">{{#if level === 'error'}}错误{{#else}}提醒{{/if}}</span>
+                <span class="maint-issue-section">{{ section }}</span>
+                <span class="maint-issue-text">{{ text }}</span>
+            </li>
+            {{/each}}
+        </ul>
+    </div>
+    {{/if}}
+
+    <div class="maint-sections">
+        {{#each report.sections}}
+        <div class="info-card maint-section" data-section="{{ id }}">
+            <h2><span class="maint-section-icon">{{ icon }}</span> {{ title }}</h2>
+            <table class="maint-table">
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <th>{{ label }}</th>
+                        <td>
+                            <span class="maint-value {{#if level}}level-{{ level }}{{/if}}">{{ value }}</span>
+                            {{#if hint}}
+                            <span class="maint-hint">{{ hint }}</span>
+                            {{/if}}
+                        </td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+        {{/each}}
+    </div>
+
+    <div class="maint-sections">
+        <div class="info-card maint-section">
+            <h2>🔎 安全自检明细</h2>
+            <table class="maint-table maint-table-compact">
+                <thead>
+                    <tr>
+                        <th>目标</th>
+                        <th>路径</th>
+                        <th>期望</th>
+                        <th>实际</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each report.details.probes}}
+                    <tr>
+                        <td>{{ label }}</td>
+                        <td><code>{{ path }}</code></td>
+                        <td class="num">{{ expect }}</td>
+                        <td class="num {{#if ok}}level-ok{{#else}}level-error{{/if}}">{{ status }}{{#if error}} ({{ error }}){{/if}}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+            <p class="table-hint">从本机 127.0.0.1 发起的自我请求；公网侧仍建议用浏览器再确认一次。</p>
+        </div>
+
+        <div class="info-card maint-section">
+            <h2>🧩 配置与数据文件</h2>
+            <table class="maint-table maint-table-compact">
+                <thead>
+                    <tr>
+                        <th>文件</th>
+                        <th>状态</th>
+                        <th>体积</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each report.details.configFiles}}
+                    <tr>
+                        <td><code>{{ name }}</code></td>
+                        <td>
+                            {{#if exists}}
+                            {{#if ok}}<span class="level-ok">可解析</span>{{#else}}<span class="level-error">解析失败：{{ error }}</span>{{/if}}
+                            {{#else}}
+                            <span class="level-info">不存在</span>
+                            {{/if}}
+                        </td>
+                        <td class="num">{{ bytes }}</td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {{#if report.details.tagDuplicates.length}}
+    <div class="info-card">
+        <h2>🏷️ 近重复标签（归一化后仍并存）</h2>
+        <ul class="maint-plain-list">
+            {{#each report.details.tagDuplicates}}
+            <li>{{ this }}</li>
+            {{/each}}
+        </ul>
+        <p class="table-hint">写法不同但指向同一概念的标签。可用 tools/tag-audit.mjs 生成方案，再由 tools/tag-merge.mjs 执行合并。</p>
+    </div>
+    {{/if}}
+
+    {{#if report.details.tagHapax.length}}
+    <div class="info-card">
+        <h2>📉 长尾标签（只出现 1 次，显示前 50 个）</h2>
+        <div class="maint-chips">
+            {{#each report.details.tagHapax}}
+            <span class="maint-chip">{{ name }}</span>
+            {{/each}}
+        </div>
+    </div>
+    {{/if}}
+
+    <div class="maint-sections">
+        <div class="info-card maint-section">
+            <h2>👻 孤儿上传{{#if report.details.orphanUploads.length}}（{{ report.details.orphanUploads.length }}）{{/if}}</h2>
+            {{#if report.details.orphanUploads.length}}
+            <ul class="maint-plain-list">
+                {{#each report.details.orphanUploads}}
+                <li><code>{{ rel }}</code> <span class="maint-muted">{{ size }}</span></li>
+                {{/each}}
+            </ul>
+            <p class="table-hint">磁盘上有、但没有任何文章引用。删除前请自行确认（可能是将来要用的素材）。</p>
+            {{#else}}
+            <p class="empty-hint">没有孤儿上传，所有上传文件都被至少一篇文章引用。</p>
+            {{/if}}
+        </div>
+
+        <div class="info-card maint-section">
+            <h2>🚫 引用但缺失{{#if report.details.missingUploads.length}}（{{ report.details.missingUploads.length }}）{{/if}}</h2>
+            {{#if report.details.missingUploads.length}}
+            <ul class="maint-plain-list">
+                {{#each report.details.missingUploads}}
+                <li>
+                    <code>{{ rel }}</code>
+                    <span class="maint-muted">被 {{ count }} 处引用：{{ sourcesText }}</span>
+                </li>
+                {{/each}}
+            </ul>
+            {{#else}}
+            <p class="empty-hint">没有坏链，文章引用的上传文件都在磁盘上。</p>
+            {{/if}}
+        </div>
+    </div>
+
+    {{#if report.details.incomplete.stage.length}}
+    <div class="info-card">
+        <h2>🎓 未设学段的内容（显示前 50 条）</h2>
+        <ul class="maint-plain-list">
+            {{#each report.details.incomplete.stage}}
+            <li>{{ label }}</li>
+            {{/each}}
+        </ul>
+        <p class="table-hint">在编辑器里补上「学段」字段即可让它们出现在 /stage 页。</p>
+    </div>
+    {{/if}}
+
+    <div class="info-card maint-boundary">
+        <h2>🧭 本页做不到的事（仍须 CLI）</h2>
+        <ul>
+            <li><strong>跨机同步</strong>：<code>tools/sync-today-to-server.ps1</code>（需要本机 ssh）</li>
+            <li><strong>异地留档</strong>：<code>tools/backup-content.ps1</code>（把归档 scp 拉回本机；本页的 zip 只是就地临时副本）</li>
+            <li><strong>密钥轮换 / 重启进程</strong>：<code>tools/rotate-security.ps1</code>（重启会杀掉正在处理请求的进程自己）</li>
+            <li><strong>管理员口令重置</strong>：<code>tools/reset-admin-password.mjs</code>（忘密码时进不了后台，必须留一条不依赖登录的路）</li>
+            <li><strong>多实例一次搞定</strong>：三台实例是三个独立进程，本页只覆盖当前这一台</li>
+        </ul>
+    </div>
+
+    <script type="application/json" id="maintenance-data">{{ reportJson }}</script>
+    <script type="application/json" id="maintenance-endpoints">{{ reportApi }}|{{ backupUrl }}</script>
+</div>
