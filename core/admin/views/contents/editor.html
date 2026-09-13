@@ -327,11 +327,17 @@
                     <label for="tags" data-i18n="editor_tags">Tags</label>
                     <div class="tags-container">
                         <div class="tags-input-wrapper">
-                            <input type="text" id="tagInput" data-i18n-placeholder="editor_addTag" placeholder="Add a tag..." />
+                            <input type="text" id="tagInput" list="tagSuggestions" data-i18n-placeholder="editor_addTag" placeholder="Add a tag..." />
                             <button type="button" id="addTag" class="btn btn-sm" data-i18n="editor_add">Add</button>
                         </div>
+                        <datalist id="tagSuggestions"></datalist>
                         <div id="tagsList" class="tags-list">
                             <!-- Tags will be inserted here by JavaScript -->
+                        </div>
+                        <p id="tagCountHint" class="help-text tag-count-hint" hidden></p>
+                        <div id="existingTagsBox" class="existing-tags-box" hidden>
+                            <span class="existing-tags-label" data-i18n="editor_existingTags">已有标签（点击复用）</span>
+                            <div id="existingTagsList" class="existing-tags-list"></div>
                         </div>
                         <button type="button" id="recommendTags" class="btn btn-sm btn-outline" style="margin-top:0.4rem" data-i18n="editor_recommendTags">✨ 推荐标签</button>
                         <p class="help-text" data-i18n="editor_addTagHelp">Add multiple tags to help users find related content.</p>

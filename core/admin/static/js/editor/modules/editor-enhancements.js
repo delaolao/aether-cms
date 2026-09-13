@@ -1,5 +1,45 @@
 import { slugify } from "./validation-utils.js"
 
+/** Translate an admin string when the i18n layer is available, else fall back. */
+function tr(key, params, fallback) {
+    if (typeof window.__ === "function") {
+        const value = window.__(key, params)
+        if (value && value !== key) return value
+    }
+    if (!fallback) return key
+    return String(fallback).replace(/\{(\w+)\}/g, (match, name) =>
+        params && params[name] !== undefined ? String(params[name]) : match
+    )
+}
+
+/**
+ * Canonical tag name — mirrors `normalizeTagName()` in
+ * core/lib/content/utils/content-utils.js so the editor shows exactly what the
+ * server will store (trim, NFKC/full-width → half-width, collapsed spaces,
+ * stripped leading '#' and separators, capped length).
+ */
+export function normalizeTagName(raw) {
+    if (raw === null || raw === undefined) return ""
+    let text = String(raw).normalize("NFKC")
+    text = text.replace(/[\s\u00a0\u3000]+/g, " ").trim()
+    text = text.replace(/^#+/, "").trim()
+    text = text.replace(/^[,，、;；|]+/, "").replace(/[,，、;；|]+$/, "").trim()
+    text = text.replace(/[\s\u00a0\u3000]+/g, " ").trim()
+    // Drop spaces between two CJK characters (`心理 危机` → `心理危机`).
+    for (let i = 0; i < 4; i++) {
+        const collapsed = text.replace(/([\u3400-\u9fff\uf900-\ufaff])\s+([\u3400-\u9fff\uf900-\ufaff])/g, "$1$2")
+        if (collapsed === text) break
+        text = collapsed
+    }
+    if (text.length > 40) text = text.slice(0, 40).trim()
+    return text
+}
+
+/** How many tags a single article should carry before we nudge the author. */
+const TAG_SOFT_LIMIT = 5
+/** How many existing tags to offer as reusable chips. */
+const EXISTING_TAG_CHIPS = 24
+
 /**
  * Editor Enhancements - Handles tags, categories, and date picker functionality
  */
@@ -16,6 +56,13 @@ export class EditorEnhancements {
         this.addCategoryBtn = document.getElementById("addCategory")
 
         this.publishDateInput = document.getElementById("publishDate")
+
+        // Existing-tag suggestions (see loadTagSuggestions)
+        this.tagSuggestionsList = document.getElementById("tagSuggestions")
+        this.existingTagsBox = document.getElementById("existingTagsBox")
+        this.existingTagsList = document.getElementById("existingTagsList")
+        this.tagCountHint = document.getElementById("tagCountHint")
+        this.existingTags = []
 
         // New parent page elements
         this.pageTypeSelect = document.getElementById("pageType")
@@ -48,11 +95,113 @@ export class EditorEnhancements {
         // Load existing tags and categories if available
         this.loadExistingData()
 
+        // Offer the tags the site already uses (autocomplete + clickable chips)
+        this.loadTagSuggestions()
+
         // Listen for content loaded event to ensure we get the data
         document.addEventListener("editor:contentLoaded", (event) => {
             // Load categories and tags from the loaded content
             this.loadExistingData()
         })
+    }
+
+    /**
+     * Load every tag the site already uses (GET /api/tags — same public endpoint
+     * that feeds the frontend word cloud) and offer them in two ways:
+     *   - a <datalist> for the tag input (native autocomplete)
+     *   - clickable chips ordered by usage ("点击复用")
+     *
+     * This is the main defence against tag sprawl: authors are far more likely to
+     * reuse an existing tag when it is one click away than to retype a variant.
+     */
+    async loadTagSuggestions() {
+        try {
+            const res = await fetch("/api/tags", { credentials: "same-origin" })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const json = await res.json()
+            const tags = Array.isArray(json.tags) ? json.tags : []
+            this.existingTags = tags
+                .filter((tag) => tag && tag.name)
+                .map((tag) => ({ name: String(tag.name), count: Number(tag.count) || 0 }))
+                .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+        } catch (error) {
+            // Suggestions are a convenience — never block the editor on them.
+            this.existingTags = []
+        }
+        this.renderTagSuggestions()
+    }
+
+    /** Render the datalist + the reusable-tag chips. */
+    renderTagSuggestions() {
+        if (this.tagSuggestionsList) {
+            this.tagSuggestionsList.innerHTML = ""
+            for (const tag of this.existingTags) {
+                const option = document.createElement("option")
+                option.value = tag.name
+                option.label = `${tag.count} 篇`
+                this.tagSuggestionsList.appendChild(option)
+            }
+        }
+        if (!this.existingTagsList || !this.existingTagsBox) return
+        this.existingTagsList.innerHTML = ""
+        const shown = this.existingTags.slice(0, EXISTING_TAG_CHIPS)
+        this.existingTagsBox.hidden = shown.length === 0
+        for (const tag of shown) {
+            const chip = document.createElement("button")
+            chip.type = "button"
+            chip.className = "existing-tag-chip"
+            chip.title = tr("editor_reuseTag", { name: tag.name, count: tag.count }, `复用「${tag.name}」（已用于 ${tag.count} 篇）`)
+            chip.innerHTML = `<span class="tag-text"></span><span class="tag-count"></span>`
+            chip.querySelector(".tag-text").textContent = tag.name
+            chip.querySelector(".tag-count").textContent = tag.count
+            chip.addEventListener("click", () => this.addExistingTag(tag.name))
+            this.existingTagsList.appendChild(chip)
+        }
+    }
+
+    /** Add a tag that already exists on the site (no confirm needed). */
+    addExistingTag(name) {
+        const canonical = normalizeTagName(name)
+        if (!canonical) return
+        if (this.tags.some((tag) => tag.toLowerCase() === canonical.toLowerCase())) {
+            this.flashTagHint(tr("editor_tagAlreadyAdded", { name: canonical }, `「${canonical}」已在标签列表里`))
+            return
+        }
+        this.removedTags.delete(canonical)
+        this.tags.push(canonical)
+        if (this.tagInput) this.tagInput.value = ""
+        this.renderTags()
+        this.markEditorDirty()
+    }
+
+    /**
+     * Find an existing tag that the given name probably means: same after
+     * normalization, one contains the other, or a shared 2+ character prefix.
+     * Returns the most-used candidate, or null.
+     */
+    findSimilarExistingTag(rawName) {
+        const name = normalizeTagName(rawName)
+        if (!name) return null
+        const lower = name.toLowerCase()
+        const candidates = []
+        for (const tag of this.existingTags) {
+            const other = tag.name.toLowerCase()
+            if (other === lower) continue // already the same concept
+            const normalizedOther = normalizeTagName(tag.name).toLowerCase()
+            let kind = ""
+            if (normalizedOther === lower) kind = "same"
+            else if (lower.length >= 2 && normalizedOther.includes(lower)) kind = "contained"
+            else if (normalizedOther.length >= 2 && lower.includes(normalizedOther)) kind = "contains"
+            else {
+                let shared = 0
+                while (shared < Math.min(lower.length, normalizedOther.length) && lower[shared] === normalizedOther[shared]) shared++
+                if (shared >= 2) kind = `prefix:${lower.slice(0, shared)}`
+            }
+            if (kind) candidates.push({ tag, kind })
+        }
+        if (!candidates.length) return null
+        candidates.sort((a, b) => b.tag.count - a.tag.count || a.tag.name.localeCompare(b.tag.name))
+        return candidates[0]
     }
 
     /**
@@ -323,14 +472,20 @@ export class EditorEnhancements {
                 // Load tags if not explicitly removed
                 if (frontmatter.tags) {
                     // Handle different data formats
-                    if (Array.isArray(frontmatter.tags)) {
-                        this.tags = [...frontmatter.tags]
-                    } else if (typeof frontmatter.tags === "string") {
-                        // Split comma-separated string
-                        this.tags = frontmatter.tags
-                            .split(",")
-                            .map((tag) => tag.trim())
-                            .filter((tag) => tag)
+                    const rawTags = Array.isArray(frontmatter.tags)
+                        ? frontmatter.tags
+                        : typeof frontmatter.tags === "string"
+                        ? frontmatter.tags.split(",")
+                        : []
+                    // Show the canonical form, deduped case-insensitively, so the
+                    // editor never displays two tags that the server treats as one.
+                    const seen = new Set()
+                    this.tags = []
+                    for (const raw of rawTags) {
+                        const name = normalizeTagName(raw)
+                        if (!name || seen.has(name.toLowerCase())) continue
+                        seen.add(name.toLowerCase())
+                        this.tags.push(name)
                     }
                 }
 
@@ -371,26 +526,55 @@ export class EditorEnhancements {
     }
 
     /**
-     * Add a new tag
+     * Add a new tag.
+     *
+     * Guards against the tag sprawl we measured on the live sites (91 tags for
+     * 20 articles, 90% used once):
+     *   1. the name is canonicalized the same way the server will store it;
+     *   2. duplicates that differ only by case/spacing are refused;
+     *   3. if the name is close to a tag the site already uses, the author is
+     *      asked once whether to reuse that tag instead of creating a variant.
      */
     addTag() {
-        if (!this.tagInput || !this.tagInput.value.trim()) return
-
+        if (!this.tagInput) return
         // Keep the raw name (trimmed) — slugifying would strip non-ASCII
         // characters such as Chinese tag names.
-        const tag = this.tagInput.value.trim()
-
-        // Skip if already exists
-        if (this.tags.includes(tag)) {
+        const tag = normalizeTagName(this.tagInput.value)
+        if (!tag) {
             this.tagInput.value = ""
             return
         }
 
+        // Skip if already exists (case-insensitive: `markdown` == `MarkDown`)
+        if (this.tags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) {
+            this.tagInput.value = ""
+            this.flashTagHint(tr("editor_tagAlreadyAdded", { name: tag }, `「${tag}」已在标签列表里`))
+            return
+        }
+
+        // Ask once when a very similar tag already exists on the site
+        const similar = this.findSimilarExistingTag(tag)
+        let finalTag = tag
+        if (similar) {
+            const count = similar.tag.count
+            const question = tr(
+                "editor_similarTagConfirm",
+                { existing: similar.tag.name, count, input: tag },
+                `站点已有「${similar.tag.name}」（${count} 篇），与「${tag}」很接近。\n\n` +
+                    `确定 = 复用已有的「${similar.tag.name}」\n取消 = 仍然新建「${tag}」`
+            )
+            if (window.confirm(question)) {
+                this.addExistingTag(similar.tag.name)
+                return
+            }
+        }
+
         // Remove from removedTags if it was previously removed
-        this.removedTags.delete(tag)
+        this.removedTags.delete(finalTag)
+        if (this.removedTags.has(tag)) this.removedTags.delete(tag)
 
         // Add to tags array
-        this.tags.push(tag)
+        this.tags.push(finalTag)
 
         // Clear input
         this.tagInput.value = ""
@@ -400,6 +584,31 @@ export class EditorEnhancements {
 
         // Mark editor as dirty (unsaved changes)
         this.markEditorDirty()
+    }
+
+    /** Show a short-lived note under the tag input. */
+    flashTagHint(message) {
+        if (!this.tagCountHint) return
+        this.tagCountHint.textContent = message
+        this.tagCountHint.hidden = false
+        if (this._tagHintTimer) window.clearTimeout(this._tagHintTimer)
+        this._tagHintTimer = window.setTimeout(() => this.updateTagCountHint(), 4000)
+    }
+
+    /** Nudge when an article carries a lot of tags (recommended: 3–5). */
+    updateTagCountHint() {
+        if (!this.tagCountHint) return
+        if (this.tags.length > TAG_SOFT_LIMIT) {
+            this.tagCountHint.textContent = tr(
+                "editor_tagCountHint",
+                { count: this.tags.length, limit: TAG_SOFT_LIMIT },
+                `当前 ${this.tags.length} 个标签，建议精简到 ${TAG_SOFT_LIMIT} 个以内，便于读者按标签找到相关内容`
+            )
+            this.tagCountHint.hidden = false
+            return
+        }
+        this.tagCountHint.textContent = ""
+        this.tagCountHint.hidden = true
     }
 
     /**
@@ -475,8 +684,8 @@ export class EditorEnhancements {
         const list = Array.isArray(tags) ? tags : []
         let added = false
         for (const raw of list) {
-            const tag = String(raw).trim()
-            if (!tag || this.tags.includes(tag)) continue
+            const tag = normalizeTagName(raw)
+            if (!tag || this.tags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) continue
             this.removedTags.delete(tag)
             this.tags.push(tag)
             added = true
@@ -515,6 +724,9 @@ export class EditorEnhancements {
             // If no tags, show a placeholder
             this.tagsList.innerHTML = '<p class="tags-placeholder">No tags added</p>'
         }
+
+        // Warn when the article carries more tags than recommended
+        this.updateTagCountHint()
     }
 
     /**

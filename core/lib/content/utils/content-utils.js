@@ -80,6 +80,74 @@ export function slugify(text) {
         .replace(/\-\-+/g, "-") // Replace multiple - with single -
 }
 
+export const TAG_MAX_LENGTH = 40
+
+/**
+ * Canonical form of a single tag name.
+ *
+ * Why: tags are typed by hand, so the same concept arrives as `MarkDown` vs
+ * `markdown`, `心理 危机` vs `心理危机`, or with full-width punctuation. Without
+ * a canonical form the tag cloud grows a near-duplicate for every variation
+ * (measured on production: 91 tags for 20 articles, 90% of them used once).
+ *
+ * Rules (deliberately conservative — no semantic rewriting, no translation):
+ *   - NFKC: full-width → half-width (`Ｍａｒｋ` → `Mark`), also normalizes
+ *     compatibility forms such as ① or ㍿.
+ *   - collapse all internal whitespace runs to one space and trim.
+ *   - strip a single leading `#` and surrounding separators (`,` `、` `;`).
+ *   - cap the length (TAG_MAX_LENGTH) so a whole sentence cannot become a tag.
+ *
+ * Chinese tags keep their characters; only ASCII case is folded (by callers
+ * that compare tags, not here — the display form keeps the author's casing).
+ *
+ * @param {string} raw - Raw tag text
+ * @returns {string} Canonical tag name ("" when nothing is left)
+ */
+export function normalizeTagName(raw) {
+    if (raw === null || raw === undefined) return ""
+    let text = String(raw).normalize("NFKC")
+    text = text.replace(/[\s\u00a0\u3000]+/g, " ").trim()
+    text = text.replace(/^#+/, "").trim()
+    text = text.replace(/^[,，、;；|]+/, "").replace(/[,，、;；|]+$/, "").trim()
+    text = text.replace(/[\s\u00a0\u3000]+/g, " ").trim()
+    // CJK tags are often typed with stray spaces (`心理 危机`); drop spaces that
+    // sit between two CJK characters so they cannot become a second tag.
+    for (let i = 0; i < 4; i++) {
+        const collapsed = text.replace(/([\u3400-\u9fff\uf900-\ufaff])\s+([\u3400-\u9fff\uf900-\ufaff])/g, "$1$2")
+        if (collapsed === text) break
+        text = collapsed
+    }
+    if (text.length > TAG_MAX_LENGTH) text = text.slice(0, TAG_MAX_LENGTH).trim()
+    return text
+}
+
+/**
+ * Canonical tag list for storage: normalizes every tag and removes duplicates
+ * that only differ by ASCII case (`markdown` / `MarkDown`) or spacing.
+ * The first spelling wins, so an author's own style is preserved.
+ *
+ * @param {string[]|string|null} tags - Array of tags or a comma separated string
+ * @returns {string[]} Normalized, de-duplicated tag list
+ */
+export function normalizeTagList(tags) {
+    const list = Array.isArray(tags)
+        ? tags
+        : typeof tags === "string"
+        ? tags.split(/[,，、;；|]/)
+        : []
+    const out = []
+    const seen = new Set()
+    for (const raw of list) {
+        const name = normalizeTagName(raw)
+        if (!name) continue
+        const key = name.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push(name)
+    }
+    return out
+}
+
 /**
  * Renames a property in all objects within an array
  * This function modifies the objects in place for optimal performance

@@ -802,6 +802,50 @@ body.editor-sidebar-open {
     border: 1px solid #d0e1fd;
 }
 
+/* --- Existing-tag suggestions (防标签发散：优先复用站点已有标签) --- */
+.existing-tags-box {
+    margin: 8px 0;
+}
+.existing-tags-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+.existing-tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 2px;
+}
+.existing-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font: inherit;
+    font-size: 0.8rem;
+    line-height: 1.3;
+    padding: 3px 9px;
+    border: 1px dashed #c8d2dc;
+    border-radius: 14px;
+    background: #fbfcfd;
+    color: #33506e;
+    cursor: pointer;
+}
+.existing-tag-chip:hover {
+    background: #eef4ff;
+    border-color: #9cc3ee;
+}
+.existing-tag-chip .tag-count {
+    color: #8a94a0;
+    font-size: 0.72rem;
+}
+.tag-count-hint {
+    color: #b26a00;
+}
+
 .tag-text,
 .category-text {
     overflow: hidden;

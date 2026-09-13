@@ -42,6 +42,34 @@
 - JSON 形式（便于调试/聚合）：`/search?q=…&format=json` 返回 `total / relaxed / facets / results[]`（含 `score`、`hits`、`snippet`、`views`）
 - ⚠️ `/search` 路径由内置搜索页占用；若你有同名的自定义页面，请改用其他 slug
 
+### 标签治理（避免标签发散与同义重复）
+
+文章一多，标签最容易长成长尾。线上实测：某站 20 篇文章产生了 **91 个标签，其中 90% 只被用过一次**，并且 `cpu` 与 `中央处理器` 覆盖完全相同的文章。
+
+- **体检（只读）**：
+  ```bash
+  node tools/tag-audit.mjs https://你的域名        # 线上（公开 API + /tag-cloud）
+  node tools/tag-audit.mjs --dir content/data      # 本地/服务器上离线体检
+  node tools/tag-audit.mjs https://你的域名 --emit-plan tag-merge-plan.json   # 导出合并方案
+  ```
+  报告长尾分布、归一化重复、同篇文章标签组、真子集、名称近义候选（含中英同概念）、同族发散聚类、过泛标签、演示内容噪声与标签堆砌。
+- **防复发（编辑器）**：保存时自动规范化（去空格/全角转半角/中文空格合并/大小写去重），输入时提供已有标签自动补全与「点击复用」芯片，输入近似标签会确认一次是否复用，单篇超过 5 个标签会提醒精简。
+- **已成文的合并流程**：`tag-merge-plan.json` 人工确认后，用合并工具安全改写内容文件（见 `tools/`，执行前自动备份）。
+
+### 内容备份（`content/data` 与 `content/uploads`）
+
+这两处既不在 git（`.gitignore` 排除）也不在代码同步的备份范围内，属于单点风险：
+
+```powershell
+.\tools\backup-content.ps1 -DryRun      # 看计划
+.\tools\backup-content.ps1              # 服务器打包 → 拉回本机 → 复算 sha256/条目数校验 → 与上一份对比
+.\tools\backup-content.ps1 -Verify      # 只清点比对（不打包）
+.\tools\backup-content.ps1 -LocalOnly   # 完全不连服务器，只校验已有留档
+.\tools\backup-content.ps1 -Restore -Instance '<实例目录>' -Archive '<tgz>'   # 恢复（解包前自动再备份一次）
+```
+
+建议：本机每周拉取一次（`-Prune -Keep 14` 轮转）+ 服务器端每晚 crontab 快照（片段见脚本文件头）。归档内含 `users.json`（口令哈希）与统计明细，请按敏感数据保存。
+
 ### 视频自动播放与顺序连播
 - **打开文章即自动播放**：第一个视频进入视口时自动开始（首屏有视频则立即开始；视频在折叠线以下时，等滚动到它再开始，避免白白下载）
 - **多视频顺序连播**：当前视频结束后自动滚动到下一个继续播放，直到全部播完

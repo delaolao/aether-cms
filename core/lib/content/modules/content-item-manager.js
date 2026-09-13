@@ -3,7 +3,7 @@
  */
 import { join } from "node:path"
 import { ensureDirectory, findMarkdownFileByProperty, writeMarkdownFile, deleteFile } from "../utils/file-utils.js"
-import { slugify } from "../utils/content-utils.js"
+import { slugify, normalizeTagList } from "../utils/content-utils.js"
 import { serializeFrontmatter } from "../utils/yaml-utils.js"
 
 export class ContentItemManager {
@@ -108,7 +108,12 @@ export class ContentItemManager {
             // Add categories/tags/relatedPosts if provided (for posts)
             if (isPost) {
                 if (metadata.category) frontmatter.category = metadata.category
-                if (metadata.tags) frontmatter.tags = metadata.tags
+                // Tags are canonicalized on the way in (trim / NFKC / case-insensitive
+                // dedupe) so `MarkDown` and `markdown` can never coexist again.
+                if (metadata.tags !== undefined && metadata.tags !== null) {
+                    const normalizedTags = normalizeTagList(metadata.tags)
+                    frontmatter.tags = normalizedTags.length ? normalizedTags : []
+                }
                 if (metadata.relatedPosts) frontmatter.relatedPosts = metadata.relatedPosts
             }
 
@@ -204,6 +209,11 @@ export class ContentItemManager {
                 ...originalContent.frontmatter,
                 ...metadata,
                 updatedAt: new Date().toISOString(),
+            }
+
+            // Canonicalize tags on update as well (see createContent above).
+            if (updatedFrontmatter.tags !== undefined && updatedFrontmatter.tags !== null) {
+                updatedFrontmatter.tags = normalizeTagList(updatedFrontmatter.tags)
             }
 
             // Use updated content field if provided or keep original
