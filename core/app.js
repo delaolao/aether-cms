@@ -8,6 +8,7 @@ import { setupMediaApi } from "./api/media-api.js"
 import { setupThemeApi } from "./api/theme-api.js"
 import { setupUserApi } from "./api/user-api.js"
 import { setupStaticApi } from "./api/static-api.js"
+import { setupPublicApi } from "./api/public-api.js"
 
 // Import core libraries
 import { ThemeManager } from "./lib/theme/theme-manager.js"
@@ -19,6 +20,10 @@ import { SettingsService } from "./lib/settings-service.js"
 import { GlobalMenuManager } from "./lib/global-menu-manager.js"
 import { AnalyticsStore } from "./lib/analytics/analytics-store.js"
 import { VisitTracker } from "./lib/analytics/visit-tracker.js"
+import { configurePeerTube, warmCacheFromContent, extractPeerTubeIds, warmPeerTubeCache } from "./lib/media/peertube.js"
+import { buildSocialMeta, canonicalUrl, extractVideosFromHtml } from "./lib/media/social-meta.js"
+import { buildShareBar } from "./lib/media/share-bar.js"
+import { configureAttachments } from "./lib/media/attachments.js"
 
 // Import utilities
 import { handle404, handle500 } from "./utils/route-utils.js"
@@ -44,6 +49,50 @@ function envFlag(name, defaultValue) {
 }
 
 export async function setupApp(app, config) {
+    // ---------------------------------------------------------------------
+    // Static-file guard (runs FIRST).
+    //
+    // LiteNode serves the project root as static assets, so without this guard
+    // anyone could download `/.env` (COOKIE_SECRET!), `/content/data/*`
+    // (users.json password hashes, sessions.json tokens, drafts, analytics salt)
+    // and the source files under `/core/**`. Only the paths the frontend and the
+    // admin UI genuinely need stay public:
+    //
+    //   /assets/**              theme-agnostic CSS/JS
+    //   /content/themes/**      theme assets
+    //   /content/uploads/**     media files (image/doc JSON sidecars blocked)
+    //   /core/admin/static/**   admin UI assets
+    // ---------------------------------------------------------------------
+    const SENSITIVE_PATH_PATTERNS = [
+        /^\/\.env/i,
+        /^\/\.git(\/|$)/i,
+        /^\/\.npm-cache(\/|$)/i,
+        /^\/content\/data(\/|$)/i,
+        /^\/content\/cache(\/|$)/i,
+        /^\/content\/uploads\/.*\.json$/i,
+        /^\/release(\/|$)/i,
+        /^\/(package\.json|package-lock\.json|index\.js)$/i,
+        /^\/(README|CHANGELOG|LICENSE|DEPLOYMENT-AI-TAGS)(\.[a-z]+)?$/i,
+        /^\/core\/(?!admin\/static(\/|$))/i,
+    ]
+
+    app.use(async (req, res) => {
+        let path = String(req.url || "/").split("?")[0]
+        try {
+            path = decodeURIComponent(path)
+        } catch {
+            /* keep raw */
+        }
+        if (SENSITIVE_PATH_PATTERNS.some((re) => re.test(path))) {
+            // Do NOT end the response here: LiteNode keeps dispatching the route
+            // after middleware, and a handler would then write headers twice
+            // (ERR_HTTP_HEADERS_SENT → process crash). Rewriting the URL to a
+            // path that has no route lets the framework's own 404 handling
+            // produce the response (theme 404 page, or JSON for /api/*).
+            req.url = "/__aether_not_found__"
+        }
+    })
+
     // Enable cookie parser
     app.enableCookieParser()
 
@@ -101,6 +150,65 @@ export async function setupApp(app, config) {
     // Finally initialize theme manager with settings service and menu manager
     themeManager = new ThemeManager(config.themesDir, settingsService, menuManager)
     await themeManager.initialize()
+
+    // ---------------------------------------------------------------------
+    // PeerTube metadata (video covers / duration / channel)
+    // ---------------------------------------------------------------------
+    configurePeerTube({
+        enabled: envFlag("PEERTUBE_ENABLED", true),
+        base: process.env.PEERTUBE_URL || "https://stream.dleu.net",
+        // Optional separate base for server-side metadata calls, e.g. when the
+        // CMS host can only reach PeerTube on its internal address
+        // (http://10.x.x.x:9000) while visitors use the public HTTPS domain.
+        apiUrl: process.env.PEERTUBE_API_URL || "",
+        cacheDir: process.env.PEERTUBE_CACHE_DIR || join(config.rootDir || ".", "content", "cache", "peertube"),
+        ttlMs: Number(process.env.PEERTUBE_CACHE_TTL || 86400) * 1000,
+        timeoutMs: Number(process.env.PEERTUBE_TIMEOUT || 8000),
+        // How many videos to warm per startup pass (the rest fill in on访问自愈).
+        warmLimit: Number(process.env.PEERTUBE_WARM_LIMIT || 200),
+        runtime: true,
+    })
+
+    const peerTubeWarmLimit = Number(process.env.PEERTUBE_WARM_LIMIT || 200)
+
+    // Video autoplay + sequential playback on article pages (frontend only).
+    // Browsers only allow programmatic playback while muted, so `muted` is the
+    // default and the on-page control bar offers a one-click "开声".
+    const videoAutoplay = envFlag("VIDEO_AUTOPLAY", true)
+    const videoAutoplayMuted = envFlag("VIDEO_AUTOPLAY_MUTED", true)
+
+    // Attachment blocks read real files from the uploads directory
+    configureAttachments({
+        uploadsDir: config.uploadsDir || "content/uploads",
+        urlPrefix: "/content/uploads",
+    })
+
+    // Warm covers in the background (never blocks startup) so list cards have
+    // thumbnails without fetching during a request. New/updated posts warm too.
+    if (process.env.PEERTUBE_ENABLED !== "false") {
+        setTimeout(() => {
+            warmCacheFromContent(contentManager, { limit: peerTubeWarmLimit })
+                .then((stats) => {
+                    if (stats.total > 0) {
+                        console.log(
+                            `[peertube] metadata ready: ${stats.total} videos (fetched ${stats.fetched}, cached ${stats.cached}, failed ${stats.failed})`
+                        )
+                    }
+                })
+                .catch(() => {})
+        }, 4000).unref?.()
+
+        const warmFromPost = (post) => {
+            try {
+                const ids = extractPeerTubeIds(post?.content || "")
+                if (ids.length > 0) warmPeerTubeCache(ids).catch(() => {})
+            } catch {
+                /* ignore */
+            }
+        }
+        hookSystem.addAction("post_created", warmFromPost)
+        hookSystem.addAction("post_updated", warmFromPost)
+    }
 
     // Add a charset to text/* responses so non-ASCII content (e.g. Chinese)
     // is not mis-decoded by the browser when no charset is declared.
@@ -161,11 +269,57 @@ export async function setupApp(app, config) {
 
         if (!isFrontend) return
 
-        const injectHead = (html) => {
-            const idx = String(html).toLowerCase().indexOf("<head>")
+        const injectHead = (html, data) => {
+            const str = String(html)
+            const idx = str.toLowerCase().indexOf("<head>")
             if (idx === -1) return html
-            const link = '<link rel="stylesheet" href="/assets/aether-extras.css" />\n'
-            return html.slice(0, idx + 6) + link + html.slice(idx + 6)
+            let extra = '<link rel="stylesheet" href="/assets/aether-extras.css" />\n'
+            // The video facade / share bar runtimes are only needed on pages that
+            // contain them, so other pages stay byte-identical. Themes may also
+            // include them in their layout (which keeps static exports working) —
+            // skip the injection when the tag is already present.
+            if (str.includes('class="video-facade') && !str.includes("video-facade.js")) {
+                extra += '<script src="/assets/video-facade.js" defer></script>\n'
+            }
+            // Autoplay / sequential playback: only on pages that actually embed
+            // videos. The settings travel as an inline JSON object so a visitor
+            // can still override them from the on-page control bar (an empty
+            // object — e.g. a static export including the runtime itself —
+            // simply means "autoplay on, muted", the browser-safe default).
+            const hasLocalVideo = str.includes('class="video-local"')
+            if (str.includes('class="video-facade') || hasLocalVideo) {
+                extra += `<script>window.__AETHER_VIDEO_PLAYLIST__=${JSON.stringify({
+                    enabled: videoAutoplay,
+                    muted: videoAutoplayMuted,
+                })}</script>\n`
+                if (!str.includes("video-playlist.js")) {
+                    extra += '<script src="/assets/video-playlist.js" defer></script>\n'
+                }
+            }
+            if (str.includes('class="share-bar"') && !str.includes("share-bar.js")) {
+                extra += '<script src="/assets/share-bar.js" defer></script>\n'
+            }
+            // Live search suggestions on /search (the page works without JS —
+            // the script only adds a dropdown fed by the public API).
+            if (str.includes("data-search-suggest") && !str.includes("search-suggest.js")) {
+                extra += '<script src="/assets/search-suggest.js" defer></script>\n'
+            }
+            // Search result pages must not be indexed (thin/duplicate content).
+            if (data && data.searchRoute) {
+                extra += '<meta name="robots" content="noindex, follow" />\n'
+            }
+            // OpenGraph / Twitter Card / JSON-LD (theme-agnostic, like the CSS)
+            try {
+                extra += buildSocialMeta({
+                    data: data || {},
+                    req,
+                    html: str,
+                    siteSettings: settingsService?.settings || null,
+                })
+            } catch (error) {
+                console.error("[aether] social meta injection failed:", error.message)
+            }
+            return str.slice(0, idx + 6) + extra + str.slice(idx + 6)
         }
 
         // Inject the tag workbench (filter bar) into the page for the ACTIVE
@@ -211,6 +365,55 @@ export async function setupApp(app, config) {
             return str.slice(0, idx) + fragment + str.slice(idx)
         }
 
+        /**
+         * Share bar: injected into CONTENT pages only (a real post/page, i.e. the
+         * route supplied a contentId). Placed just above the "knowledge links"
+         * block when the theme renders one, otherwise before the end of the
+         * article. Fully server-rendered (QR codes included) so it works on every
+         * theme, and it is skipped when the markup is already present.
+         */
+        const injectShareBar = (html, data) => {
+            const str = String(html)
+            if (!data || !data.contentId || !data.metadata?.title) return html
+            if (str.includes('class="share-bar"')) return html
+
+            let fragment = ""
+            try {
+                const videos = extractVideosFromHtml(str)
+                fragment = buildShareBar({
+                    url: canonicalUrl(req),
+                    title: data.metadata.title,
+                    description: data.metadata.seoDescription || data.metadata.excerpt || "",
+                    videos,
+                })
+            } catch (error) {
+                console.error("[aether] share bar failed:", error.message)
+                return html
+            }
+            if (!fragment) return html
+
+            const markers = ['class="wiki-links"', 'class="post-footer"', 'class="post-nav"']
+            let idx = -1
+            for (const marker of markers) {
+                const at = str.indexOf(marker)
+                if (at !== -1) {
+                    const tagStart = str.lastIndexOf("<", at)
+                    idx = tagStart !== -1 && tagStart < at ? tagStart : at
+                    break
+                }
+            }
+            if (idx === -1) {
+                const closing = str.lastIndexOf("</article>")
+                if (closing !== -1) {
+                    idx = closing
+                } else {
+                    const main = str.toLowerCase().indexOf("</main>")
+                    idx = main !== -1 ? main : str.length
+                }
+            }
+            return str.slice(0, idx) + fragment + str.slice(idx)
+        }
+
         const originalRender = res.render.bind(res)
         res.render = async (template, data) => {
             // Page-level view counter: routes that resolve a content item pass
@@ -239,7 +442,13 @@ export async function setupApp(app, config) {
             } finally {
                 res.end = originalEnd
             }
-            res.end(html ? injectWorkbench(injectHead(html), res.tagWorkbenchHtml) : html)
+            if (!html) return res.end(html)
+            // Order matters: the share bar is added to the BODY first, so that
+            // injectHead (which decides which runtimes to load) sees it.
+            let out = injectShareBar(html, data)
+            out = injectHead(out, data)
+            out = injectWorkbench(out, res.tagWorkbenchHtml)
+            res.end(out)
         }
 
         const originalHtml = res.html.bind(res)
@@ -313,9 +522,16 @@ export async function setupApp(app, config) {
     setupMediaApi(app, systems)
     setupUserApi(app, systems)
     setupStaticApi(app, systems)
+    setupPublicApi(app, systems) // /api/public/* + /oembed (read-only, CORS open)
 
     // Set global not found handler
     app.notFound(async (req, res) => {
+        // A middleware may have answered already (e.g. CORS preflight). LiteNode
+        // still calls this handler afterwards, and its json/html helpers do NOT
+        // guard against an already-sent response — writing again would throw
+        // ERR_HTTP_HEADERS_SENT and kill the process.
+        if (res.headersSent || res.finished) return
+
         if (req.url.startsWith("/api")) {
             res.status(404).json({ error: "Endpoint not found" })
         } else if (!req.url.startsWith("/aether")) {
@@ -327,6 +543,7 @@ export async function setupApp(app, config) {
     // Set custom error handler
     app.onError(async (error, req, res) => {
         console.error("Application error:", error)
+        if (res.headersSent || res.finished) return
         if (req.url.startsWith("/api")) {
             res.status(500).json({ error: "Internal server error" })
         } else if (req.url.startsWith("/aether")) {

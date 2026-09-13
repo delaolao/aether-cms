@@ -301,6 +301,541 @@
     text-align: center;
 }
 
+/* --- Share bar (分享条：复制/微信/企业微信/QQ/空间/打印) --- */
+.share-bar {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0 0;
+    padding: 0.9rem 0;
+    border-top: 1px dashed rgba(0, 0, 0, 0.12);
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.12);
+    font-size: 0.88rem;
+}
+.share-bar .share-label {
+    color: #8a94a0;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    margin-right: 0.2rem;
+}
+.share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.38em 0.8em;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 999px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.share-btn:hover {
+    background: #eef4ff;
+    border-color: rgba(0, 102, 204, 0.45);
+    color: #0055aa;
+}
+.share-btn:active {
+    transform: translateY(1px);
+}
+.share-item {
+    position: relative;
+    display: inline-flex;
+}
+.share-pop {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 0.5rem);
+    z-index: 30;
+    width: 210px;
+    padding: 0.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+    text-align: center;
+}
+.share-pop[hidden] {
+    display: none;
+}
+.share-qr svg {
+    display: block;
+    width: 168px;
+    height: 168px;
+    margin: 0 auto;
+}
+.share-qr-missing {
+    display: block;
+    color: #b02a37;
+    font-size: 0.8rem;
+    padding: 1rem 0;
+}
+.share-qr-hint {
+    margin: 0.55rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: #6b7280;
+}
+/* Copy feedback */
+.share-toast {
+    position: absolute;
+    right: 0;
+    top: -0.35rem;
+    transform: translateY(-100%);
+    padding: 0.25em 0.6em;
+    border-radius: 6px;
+    background: rgba(23, 35, 51, 0.92);
+    color: #fff;
+    font-size: 0.75rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.share-toast.is-visible {
+    opacity: 1;
+}
+
+/* Print / save as PDF: keep the article, drop the chrome and the share bar */
+@media print {
+    .share-bar,
+    .admin-bar,
+    .aether-bar,
+    .site-header,
+    .site-footer,
+    .wiki-links,
+    .post-navigation,
+    .post-nav,
+    .pagination,
+    .tag-filter-bar,
+    .post-cover,
+    .video-facade-play,
+    .aether-video-bar,
+    .video-autoplay-veil {
+        display: none !important;
+    }
+    .video-facade.is-current::after {
+        display: none !important;
+    }
+    .video-facade {
+        border: 0;
+    }
+    .video-facade-poster {
+        max-height: 60vh;
+    }
+    a[href^="http"]::after {
+        content: " (" attr(href) ")";
+        font-size: 0.75em;
+        color: #666;
+        word-break: break-all;
+    }
+    body {
+        background: #fff !important;
+    }
+}
+
+/* --- Attachment block (文章末尾的附件清单) --- */
+.post-attachments {
+    margin: 2rem 0 0;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.post-attachments-title {
+    font-size: 1.05rem;
+    margin: 0 0 0.75rem;
+}
+.post-attachments-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.post-attachment-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    background: #fdfdfe;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+.post-attachment-link:hover {
+    border-color: rgba(0, 102, 204, 0.4);
+    background: #f4f8ff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.post-attachment-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    flex: 0 0 auto;
+}
+.post-attachment-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+}
+.post-attachment-name {
+    font-weight: 600;
+    font-size: 0.92rem;
+    word-break: break-all;
+}
+.post-attachment-meta {
+    font-size: 0.76rem;
+    color: #8a94a0;
+}
+.post-attachment.is-missing .post-attachment-name {
+    color: #b02a37;
+    text-decoration: line-through;
+}
+.post-attachment.is-missing .post-attachment-link {
+    border-style: dashed;
+    background: #fff8f8;
+}
+
+/* --- Video facade (封面 + 点击加载；PeerTube / Bilibili) --- */
+.video-facade {
+    position: relative;
+    margin: 1.25rem 0;
+    padding: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0f172a;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.video-facade .video-facade-poster,
+.video-facade .video-iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: 0;
+    background: #000;
+}
+.video-facade .video-facade-placeholder {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%);
+}
+.video-facade .video-facade-play {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.12);
+    color: #fff;
+    font-size: 1rem;
+    transition: background 0.18s ease;
+}
+.video-facade .video-facade-play:hover,
+.video-facade .video-facade-play:focus-visible {
+    background: rgba(0, 0, 0, 0.32);
+}
+.video-facade .video-facade-play-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: rgba(0, 102, 204, 0.92);
+    color: #fff;
+    font-size: 1.4rem;
+    padding-left: 4px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+    transition: transform 0.18s ease, background 0.18s ease;
+}
+.video-facade .video-facade-play:hover .video-facade-play-icon {
+    transform: scale(1.06);
+    background: #0055aa;
+}
+.video-facade .video-facade-duration {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    padding: 0.2em 0.55em;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.72);
+    color: #fff;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+.video-facade .video-facade-caption {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.85rem;
+    background: #f8fafc;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.88rem;
+    color: #334155;
+}
+.video-facade .video-facade-title {
+    font-weight: 600;
+}
+.video-facade .video-facade-channel {
+    font-size: 0.82rem;
+    color: #64748b;
+    padding: 0.1em 0.45em;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+}
+.video-facade .video-watch-link {
+    margin-left: auto;
+    font-size: 0.82rem;
+    color: #0055aa;
+    text-decoration: none;
+    border-bottom: 1px dashed #9cc3ee;
+}
+.video-facade .video-watch-link:hover {
+    border-bottom-style: solid;
+}
+
+/* --- Card cover (列表卡片的视频封面) --- */
+/* The container always reserves a 16:9 box, so while the PeerTube metadata is
+   still cold the card shows a visible placeholder instead of collapsing to zero
+   height (which looked like "no cover at all"). */
+.post-cover {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    margin: -0.25rem 0 0.7rem;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%);
+    text-decoration: none;
+}
+.post-cover img {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.post-cover:hover img {
+    transform: scale(1.03);
+    opacity: 0.92;
+}
+.post-cover .post-cover-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(0, 102, 204, 0.9);
+    color: #fff;
+    font-size: 1rem;
+    padding-left: 3px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.post-cover .post-cover-duration {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 0.15em 0.5em;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+/* Placeholder cover while PeerTube metadata is still being fetched */
+.post-cover.post-cover-pending {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 1.4rem;
+}
+
+/* --- Video link card (无法嵌入的短链，如 b23.tv) --- */
+.video-link-card {
+    margin: 1rem 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    background: #f8fafc;
+}
+.video-link-card-inner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    text-decoration: none;
+    color: inherit;
+}
+.video-link-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 102, 204, 0.9);
+    color: #fff;
+    padding-left: 3px;
+    flex: 0 0 auto;
+}
+.video-link-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.9rem;
+}
+.video-link-card-text small {
+    color: #64748b;
+    font-size: 0.78rem;
+}
+.video-link-card-inner:hover {
+    background: #eef4ff;
+}
+
+/* --- Video library (/videos) --- */
+.video-library .video-lib-intro {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin: 0 0 0.9rem;
+}
+.video-library .video-lib-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+}
+.video-library .video-lib-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.1rem;
+}
+.video-lib-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.video-lib-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 102, 204, 0.35);
+}
+.video-lib-cover {
+    position: relative;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%);
+}
+.video-lib-cover img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}
+.video-lib-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.6rem;
+}
+.video-lib-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(0, 102, 204, 0.9);
+    color: #fff;
+    padding-left: 3px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    transition: transform 0.18s ease;
+}
+.video-lib-card:hover .video-lib-play {
+    transform: translate(-50%, -50%) scale(1.08);
+}
+.video-lib-source {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    padding: 0.12em 0.5em;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+}
+.video-lib-body {
+    padding: 0.7rem 0.85rem 0.85rem;
+}
+.video-lib-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: #1f2937;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.video-lib-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.45rem;
+    font-size: 0.78rem;
+    color: #8a94a0;
+}
+.video-lib-channel {
+    padding: 0.1em 0.45em;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    color: #475569;
+}
+.video-lib-empty {
+    color: #8a94a0;
+    text-align: center;
+    padding: 2rem 0;
+}
+
 /* --- Card media badges (视频 / 终端录制 / 附件) --- */
 .post-media-badges {
     display: inline-flex;
@@ -462,4 +997,374 @@
 .chip-mini {
     font-size: 0.74rem;
     padding: 0.28em 0.6em;
+}
+
+/* --- Video autoplay / sequential playback (assets/video-playlist.js) --- */
+.video-facade.is-current,
+video.video-local.is-current {
+    border-color: var(--aether-accent, #0066cc);
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.35), 0 10px 26px rgba(15, 23, 42, 0.18);
+}
+.video-facade.is-current::after {
+    content: "正在播放";
+    position: absolute;
+    top: 0.55rem;
+    left: 0.55rem;
+    z-index: 3;
+    padding: 0.16em 0.6em;
+    border-radius: 999px;
+    background: rgba(0, 102, 204, 0.92);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+}
+/* Play target kept on top while a programmatic (muted) start is pending — the
+   browser may still refuse to autoplay, and one click then unlocks it. */
+.video-autoplay-veil {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0.05), rgba(2, 6, 23, 0.45));
+    color: #fff;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+    transition: background 0.2s ease;
+}
+.video-autoplay-veil:hover,
+.video-autoplay-veil:focus-visible {
+    background: rgba(2, 6, 23, 0.55);
+}
+.video-autoplay-veil-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: rgba(0, 102, 204, 0.92);
+    font-size: 1.2rem;
+    padding-left: 4px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.video-autoplay-veil-text {
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.aether-video-bar {
+    position: fixed;
+    left: 1rem;
+    bottom: 1rem;
+    z-index: 60;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: min(92vw, 30rem);
+    padding: 0.4rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #e5e7eb;
+    box-shadow: 0 8px 28px rgba(2, 6, 23, 0.35);
+    font-size: 0.78rem;
+    line-height: 1.4;
+    backdrop-filter: blur(6px);
+}
+.aether-video-bar-btn {
+    border: 1px solid rgba(229, 231, 235, 0.28);
+    background: rgba(229, 231, 235, 0.08);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0.25em 0.7em;
+    border-radius: 999px;
+    white-space: nowrap;
+    transition: background 0.16s ease, border-color 0.16s ease;
+}
+.aether-video-bar-btn:hover,
+.aether-video-bar-btn:focus-visible {
+    background: rgba(229, 231, 235, 0.2);
+    border-color: rgba(229, 231, 235, 0.5);
+}
+.aether-video-bar-btn[hidden] {
+    display: none;
+}
+.aether-video-bar-toggle[aria-pressed="true"] {
+    background: rgba(0, 102, 204, 0.85);
+    border-color: rgba(0, 102, 204, 0.9);
+    color: #fff;
+}
+/* Only visible while the "next video in N seconds" countdown runs */
+.aether-video-bar-cancel {
+    background: rgba(217, 119, 6, 0.92);
+    border-color: rgba(251, 191, 36, 0.9);
+    color: #fff;
+    font-weight: 700;
+}
+.aether-video-bar-cancel:hover,
+.aether-video-bar-cancel:focus-visible {
+    background: rgb(180, 83, 9);
+    border-color: rgb(252, 211, 77);
+}
+.aether-video-bar-status {
+    padding: 0 0.2rem;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+.aether-video-bar-hint {
+    flex-basis: 100%;
+    padding: 0 0.5rem 0.1rem;
+    opacity: 0.9;
+    color: #bfdbfe;
+}
+.aether-video-bar-hint:empty {
+    display: none;
+}
+@media (max-width: 560px) {
+    .aether-video-bar {
+        left: 0.5rem;
+        right: 0.5rem;
+        bottom: 0.5rem;
+        max-width: none;
+        font-size: 0.74rem;
+        justify-content: center;
+    }
+}
+
+/* --- Site search page (core/routes/search.js) --- */
+.search-page {
+    max-width: 100%;
+}
+.search-title {
+    margin: 0 0 0.9rem;
+    font-size: 1.6rem;
+}
+.search-form {
+    position: relative;
+    display: flex;
+    gap: 0.5rem;
+    margin: 0 0 1.1rem;
+}
+.search-form input[type="search"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.6rem 0.85rem;
+    font-size: 1rem;
+    border: 1px solid var(--aether-panel-line);
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+}
+.search-form input[type="search"]:focus {
+    outline: 2px solid var(--aether-accent-glow);
+    border-color: var(--aether-accent);
+}
+.search-submit {
+    flex: 0 0 auto;
+    padding: 0.6rem 1.1rem;
+    font-size: 0.95rem;
+    border: 1px solid var(--aether-accent);
+    border-radius: 8px;
+    background: var(--aether-accent);
+    color: var(--aether-accent-contrast);
+    cursor: pointer;
+}
+.search-submit:hover {
+    background: var(--aether-accent-hover);
+}
+/* Live suggestions (assets/search-suggest.js) */
+.search-suggest {
+    position: absolute;
+    z-index: 40;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    border: 1px solid var(--aether-panel-line);
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.14);
+    overflow: hidden;
+}
+.search-suggest-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.55rem 0.8rem;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--aether-row-line);
+}
+.search-suggest-item:last-child {
+    border-bottom: 0;
+}
+.search-suggest-item:hover,
+.search-suggest-item.is-active {
+    background: var(--aether-accent-shade);
+}
+.search-suggest-title {
+    font-weight: 600;
+}
+.search-suggest-meta,
+.search-suggest-empty {
+    color: var(--aether-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+.search-suggest-empty {
+    padding: 0.6rem 0.8rem;
+}
+
+.search-summary {
+    margin: 0 0 0.4rem;
+    color: var(--aether-fg);
+    font-size: 0.92rem;
+}
+.search-note {
+    margin: 0 0 0.9rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--aether-accent);
+    background: var(--aether-accent-shade);
+    color: var(--aether-fg);
+    font-size: 0.85rem;
+}
+.search-facets {
+    margin: 0 0 1.2rem;
+}
+.search-facet {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 0.5rem;
+}
+.search-facet-label {
+    flex: 0 0 auto;
+    min-width: 3.6rem;
+    color: var(--aether-muted);
+    font-size: 0.8rem;
+}
+.search-facet-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.search-results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: search-result;
+}
+.search-result {
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--aether-row-line);
+}
+.search-result-title {
+    display: inline-block;
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: var(--aether-accent);
+    text-decoration: none;
+    line-height: 1.45;
+}
+.search-result-title:hover {
+    text-decoration: underline;
+}
+.search-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.28rem 0 0.35rem;
+    color: var(--aether-muted);
+    font-size: 0.78rem;
+}
+.search-result-type {
+    padding: 0.05em 0.5em;
+    border-radius: 999px;
+    background: var(--aether-accent-soft);
+    color: var(--aether-accent);
+    font-weight: 700;
+}
+.search-result-category {
+    color: var(--aether-accent);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--aether-accent-line);
+}
+.search-result-hits {
+    opacity: 0.85;
+}
+.search-result-snippet {
+    margin: 0.3rem 0 0;
+    color: var(--aether-fg);
+    font-size: 0.92rem;
+    line-height: 1.6;
+}
+.search-result-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
+}
+.search-result mark,
+.search-suggest-item mark {
+    padding: 0 0.15em;
+    border-radius: 3px;
+    background: #fff2a8;
+    color: inherit;
+}
+.search-stats {
+    margin: 0 0 0.9rem;
+    color: var(--aether-fg);
+}
+.search-section-title {
+    margin: 1.1rem 0 0.5rem;
+    font-size: 1rem;
+}
+.search-newest {
+    margin: 0 0 0.9rem;
+    padding-left: 1.1rem;
+    color: var(--aether-fg);
+}
+.search-newest li {
+    margin-bottom: 0.3rem;
+}
+.search-newest a {
+    color: var(--aether-accent);
+}
+.search-extra-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+}
+.search-extra-links a {
+    color: var(--aether-accent);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--aether-accent-line);
+}
+.search-empty {
+    padding: 0.5rem 0;
+}
+.search-empty-tips {
+    margin: 0.4rem 0 0.9rem;
+    padding-left: 1.1rem;
+    color: var(--aether-muted);
+    font-size: 0.85rem;
+}
+@media print {
+    .search-form,
+    .search-facets,
+    .search-suggest {
+        display: none !important;
+    }
 }

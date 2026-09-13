@@ -22,6 +22,15 @@
         <div class="post-grid">
             {{#each posts}}
             <article class="post-card">
+                {{#if metadata.videoCover}}
+                <a class="post-cover" href="/post/{{ metadata.slug }}">
+                    {{#if metadata.videoCover.ready}}
+                    <img src="{{ metadata.videoCover.thumbnailUrl }}" alt="{{ metadata.videoCover.title }}" loading="lazy" decoding="async" />
+                    {{/if}}
+                    <span class="post-cover-play" aria-hidden="true">▶</span>
+                    {{#if metadata.videoCover.durationText}}<span class="post-cover-duration">{{ metadata.videoCover.durationText }}</span>{{/if}}
+                </a>
+                {{/if}}
                 <h3><a href="/post/{{ metadata.slug }}">{{ metadata.title }}</a>{{#if metadata.mediaIcons.length}}<span class="post-media-badges">{{#each metadata.mediaIcons}}<span class="media-badge {{ type }}" title="{{ label }}">{{ icon }}</span>{{/each}}</span>{{/if}}</h3>
                 <div class="post-meta">
                     <span class="post-date">{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}</span>

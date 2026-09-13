@@ -198,15 +198,30 @@ export class VisitTracker {
         return ok
     }
 
+    /**
+     * Resolve the visitor IP.
+     *
+     * When running behind a reverse proxy (nginx) only `X-Real-IP` / the LAST
+     * entry of `X-Forwarded-For` can be trusted: nginx sets `X-Real-IP` to
+     * `$remote_addr`, and with `$proxy_add_x_forwarded_for` it APPENDS the real
+     * address — so any client-supplied value sits to the LEFT and must be
+     * ignored (reading the leftmost entry would let visitors spoof their IP).
+     */
     #clientIp(req) {
         if (this.trustProxy) {
-            const header = req.headers?.["x-forwarded-for"]
-            if (header) {
-                const first = String(header).split(",")[0].trim()
-                if (first) return first
-            }
             const real = req.headers?.["x-real-ip"]
-            if (real) return String(real).trim()
+            if (real) {
+                const value = String(real).split(",")[0].trim()
+                if (value) return value
+            }
+            const forwarded = req.headers?.["x-forwarded-for"]
+            if (forwarded) {
+                const parts = String(forwarded)
+                    .split(",")
+                    .map((part) => part.trim())
+                    .filter(Boolean)
+                if (parts.length > 0) return parts[parts.length - 1]
+            }
         }
         const raw = req.socket?.remoteAddress || req.connection?.remoteAddress || ""
         return String(raw)

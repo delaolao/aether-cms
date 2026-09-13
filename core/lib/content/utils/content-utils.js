@@ -2,6 +2,66 @@
  * Utility functions for content management
  */
 
+import { extractPeerTubeId, readPeerTubeMetaSync, ensurePeerTubeMeta } from "../../media/peertube.js"
+
+/**
+ * Every `[video:URL|Caption]` directive in a markdown string.
+ *
+ * Code samples are ignored on purpose: documentation pages routinely show
+ * `[video:…]` inside fenced blocks or inline code, and those are examples, not
+ * real embeds (otherwise they would show up in the video library and cards).
+ *
+ * @param {string} markdown
+ * @returns {Array<{url: string, caption: string}>}
+ */
+export function extractVideoDirectives(markdown) {
+    if (!markdown || typeof markdown !== "string") return []
+    const prose = markdown
+        .replace(/```[\s\S]*?```/g, " ") // fenced code blocks
+        .replace(/~~~[\s\S]*?~~~/g, " ") // tilde-fenced blocks
+        .replace(/`[^`\n]*`/g, " ") // inline code
+
+    const out = []
+    const re = /\[video:([^\]|]+)(?:\|([^\]]*))?\]/g
+    let m
+    while ((m = re.exec(prose)) !== null) {
+        out.push({ url: m[1].trim(), caption: (m[2] || "").trim() })
+    }
+    return out
+}
+
+/**
+ * Cover information for the FIRST video of a piece of content, used by list
+ * cards (thumbnail + duration badge + channel). Reads the PeerTube metadata
+ * cache synchronously — no network while rendering — and returns null when the
+ * content has no video or the cache is still cold.
+ *
+ * @param {string} markdown
+ * @returns {Object|null}
+ */
+export function firstVideoCover(markdown) {
+    for (const directive of extractVideoDirectives(markdown)) {
+        const id = extractPeerTubeId(directive.url)
+        if (!id) continue
+        const meta = readPeerTubeMetaSync(id)
+        // Self-heal: cold cache → fetch in the background, so the next render
+        // shows the real cover without re-saving the article.
+        if (!meta) ensurePeerTubeMeta(id).catch(() => {})
+        return {
+            id,
+            title: meta?.title || directive.caption || "",
+            caption: directive.caption || "",
+            thumbnailUrl: meta?.thumbnailUrl || "",
+            previewUrl: meta?.previewUrl || "",
+            durationText: meta?.durationText || "",
+            channel: meta?.channel || "",
+            watchUrl: meta?.watchUrl || directive.url,
+            ready: Boolean(meta?.thumbnailUrl),
+        }
+    }
+    return null
+}
+
 /**
  * Convert a string to a URL-friendly slug
  * @param {string} text - Text to convert
@@ -302,6 +362,10 @@ export function transformContentItems(contentItems, options = {}) {
 
             // Card media badges (video / terminal cast / attachment)
             frontmatter.mediaIcons = detectMediaBadges(item.content)
+
+            // Card video cover (PeerTube thumbnail + duration) for video content
+            frontmatter.videoCover = firstVideoCover(item.content)
+            frontmatter.videoCount = extractVideoDirectives(item.content).length
 
             // Generate preview from content if needed
             let contentPreview = ""

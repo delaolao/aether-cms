@@ -23,6 +23,8 @@
 
 import { Marked } from "marked"
 import katex from "katex"
+import { readPeerTubeMetaSync, ensurePeerTubeMeta } from "../media/peertube.js"
+import { buildAttachmentBlock } from "../media/attachments.js"
 
 // ---------------------------------------------------------------------------
 // Small helpers
@@ -93,10 +95,52 @@ export function getVideoInfo(src) {
     if (peertubeWatch || peertubeLegacy) {
         const host = (peertubeWatch || peertubeLegacy)[1]
         const videoId = (peertubeWatch || peertubeLegacy)[2]
-        return { type: "peertube", id: videoId, embedUrl: `https://${host}/videos/embed/${videoId}` }
+        return {
+            type: "peertube",
+            id: videoId,
+            host,
+            embedUrl: `https://${host}/videos/embed/${videoId}`,
+            watchUrl: `https://${host}/w/${videoId}`,
+        }
     }
     if (peertubeEmbed) {
-        return { type: "peertube", embedUrl: src }
+        const host = peertubeEmbed[1]
+        const videoId = peertubeEmbed[2]
+        return {
+            type: "peertube",
+            id: videoId,
+            host,
+            embedUrl: `https://${host}/videos/embed/${videoId}`,
+            watchUrl: `https://${host}/w/${videoId}`,
+        }
+    }
+
+    // Bilibili — watch pages (BV…) and short links (b23.tv) map to the player
+    // iframe. No metadata API (it needs signing), so covers fall back to a
+    // styled placeholder.
+    if (src.includes("bilibili.com") || src.includes("b23.tv")) {
+        const bv = src.match(/\/(BV[0-9A-Za-z]{8,12})/) || src.match(/[?&]bvid=(BV[0-9A-Za-z]{8,12})/)
+        const av = src.match(/\/(av\d+)/i)
+        if (bv) {
+            return {
+                type: "bilibili",
+                id: bv[1],
+                embedUrl: `https://player.bilibili.com/player.html?bvid=${bv[1]}&high_quality=1&danmaku=0&autoplay=0`,
+                watchUrl: `https://www.bilibili.com/video/${bv[1]}`,
+            }
+        }
+        if (av) {
+            return {
+                type: "bilibili",
+                id: av[1],
+                embedUrl: `https://player.bilibili.com/player.html?aid=${av[1].replace(/^av/i, "")}&high_quality=1&danmaku=0&autoplay=0`,
+                watchUrl: `https://www.bilibili.com/video/${av[1]}`,
+            }
+        }
+        // Short links (b23.tv/xxxx) can only be turned into a BV id by following
+        // the redirect, which is not possible at render time — degrade to a
+        // "open on Bilibili" link card instead of a broken player.
+        return { type: "bilibili-link", embedUrl: "", watchUrl: src }
     }
 
     // Local / generic
@@ -456,10 +500,74 @@ function createExtensions(options) {
             renderer(token) {
                 const info = getVideoInfo(token.url)
                 const caption = token.caption ? `<div class="video-caption">${escapeHtml(token.caption)}</div>` : ""
-                if (info.type === "youtube" || info.type === "vimeo" || info.type === "peertube") {
-                    return `<div class="video-embed"><iframe src="${escapeHtml(info.embedUrl)}" class="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="${escapeHtml(token.caption || "Video")}"></iframe></div>${caption}`
+
+                // PeerTube / Bilibili → "facade": cover + play button, the iframe
+                // is only loaded on click (faster, no third-party cookies up front).
+                // Covers come from the cached PeerTube metadata (sync read only).
+                if (info.type === "peertube" || info.type === "bilibili") {
+                    const meta = info.type === "peertube" ? readPeerTubeMetaSync(info.id) : null
+                    // Self-heal: when the cover cache is cold, fetch it in the
+                    // background so the next render (or a refresh) shows it —
+                    // existing articles gain covers without being re-saved.
+                    if (info.type === "peertube" && info.id && !meta) {
+                        ensurePeerTubeMeta(info.id).catch(() => {})
+                    }
+                    const title = token.caption || meta?.title || (info.type === "peertube" ? "PeerTube 视频" : "Bilibili 视频")
+                    const poster = meta?.thumbnailUrl || ""
+                    const duration = meta?.durationText || ""
+                    const watch = meta?.watchUrl || info.watchUrl || info.embedUrl
+                    const channel = meta?.channel || ""
+
+                    return `<figure class="video-embed video-facade video-${info.type}" data-embed="${escapeHtml(
+                        info.embedUrl
+                    )}"${poster ? ` data-poster="${escapeHtml(poster)}"` : ""} data-title="${escapeHtml(
+                        title
+                    )}" data-watch="${escapeHtml(watch)}"${
+                        meta?.duration ? ` data-duration="${Number(meta.duration)}"` : ""
+                    }>
+  ${
+      poster
+          ? `<img class="video-facade-poster" src="${escapeHtml(poster)}" alt="${escapeHtml(
+                title
+            )}" loading="lazy" decoding="async" />`
+          : `<span class="video-facade-placeholder" aria-hidden="true"></span>`
+  }
+  <button class="video-facade-play" type="button" aria-label="播放：${escapeHtml(title)}">
+    <span class="video-facade-play-icon" aria-hidden="true">▶</span>
+    ${duration ? `<span class="video-facade-duration">${escapeHtml(duration)}</span>` : ""}
+  </button>
+  <noscript>
+    <iframe src="${escapeHtml(info.embedUrl)}" class="video-iframe" allowfullscreen title="${escapeHtml(title)}"></iframe>
+  </noscript>
+  <figcaption class="video-facade-caption">
+    <span class="video-facade-title">${escapeHtml(title)}</span>
+    ${channel ? `<span class="video-facade-channel">${escapeHtml(channel)}</span>` : ""}
+    <a class="video-watch-link" href="${escapeHtml(watch)}" target="_blank" rel="noopener">在原站打开 ↗</a>
+  </figcaption>
+</figure>`
                 }
-                return `<div class="video-embed"><video src="${escapeHtml(info.embedUrl)}" controls preload="metadata" class="video-local"></video></div>${caption}`
+
+                // Short b23.tv links cannot be embedded — render a link card.
+                if (info.type === "bilibili-link") {
+                    const label = token.caption || "Bilibili 视频"
+                    return `<div class="video-embed video-link-card">
+  <a class="video-link-card-inner" href="${escapeHtml(info.watchUrl)}" target="_blank" rel="noopener">
+    <span class="video-link-card-icon" aria-hidden="true">▶</span>
+    <span class="video-link-card-text"><strong>${escapeHtml(label)}</strong><small>在 Bilibili 打开 ↗</small></span>
+  </a>
+</div>`
+                }
+
+                if (info.type === "youtube" || info.type === "vimeo") {
+                    return `<div class="video-embed"><iframe src="${escapeHtml(
+                        info.embedUrl
+                    )}" class="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="${escapeHtml(
+                        token.caption || "Video"
+                    )}"></iframe></div>${caption}`
+                }
+                return `<div class="video-embed"><video src="${escapeHtml(
+                    info.embedUrl
+                )}" controls preload="metadata" class="video-local"></video></div>${caption}`
             },
         },
 
@@ -534,13 +642,30 @@ export function createMarkdownRenderer(options = {}) {
 /**
  * Render markdown to HTML using Aether's Obsidian-style renderer.
  *
+ * `[file:…]` attachments are collected into a download block appended to the
+ * body (see lib/media/attachments.js). This happens here — rather than in each
+ * route — so the frontend, the admin editor preview and the static export all
+ * stay identical. Pass `attachments: false` to opt out.
+ *
  * @param {string} content - Raw markdown
- * @param {Object} [options] - Same options as createMarkdownRenderer
+ * @param {Object} [options] - Same options as createMarkdownRenderer, plus:
+ *   - attachments (boolean, default true)
+ *   - uploadsDir (string, default "content/uploads") — where files are read from
+ *   - uploadsPrefix (string, default "/content/uploads") — public URL base
  * @returns {string} HTML
  */
 export function renderMarkdown(content, options = {}) {
     if (!content) return ""
-    return createMarkdownRenderer(options).parse(normalizeHtmlInline(content))
+    const html = createMarkdownRenderer(options).parse(normalizeHtmlInline(content))
+    if (options.attachments === false) return html
+
+    return (
+        html +
+        buildAttachmentBlock(content, {
+            uploadsDir: options.uploadsDir || "content/uploads",
+            urlPrefix: options.uploadsPrefix || "/content/uploads",
+        })
+    )
 }
 
 /**

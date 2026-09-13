@@ -4,6 +4,104 @@
 
 > 版本号遵循语义化。
 
+## [0.10.0] - 2026-09-13
+
+### 🆕 站内搜索（#8）
+
+- **服务端搜索页 `/search`**：不需要前端索引文件、不需要额外依赖，直接对内容管理器里已发布的文章与页面打分排序（本地 10 篇内容实测 5 ms，数百篇规模同样是一次内存扫描）。
+- **相关度打分**：整句命中标题（+45）> 标题（+12，开头命中再 +8）> 标签（+7）> 副标题（+6）> 分类（+5）> slug（+4）> 正文（每次命中 +2，最多计 10 处）；`"引号"` 精确短语按 1.6 倍加权；全部关键词都命中的结果再 +12。
+- **多关键词默认 AND**：找不到「全部命中」的内容时**自动放宽为任意命中**，并在页面上明确提示，避免访客看到空白页。
+- **可解释的结果**：每条结果标注命中位置（「标题、正文 3 处」）、日期（`YYYY-MM-DD`）、分类、阅读数与**正文首个命中处的高亮摘要**；标题与摘要中的关键词都用 `<mark>` 高亮（正则特殊字符已转义）。
+- **筛选与排序**：类型（文章/页面，带计数）、标签（Top 14，带计数）、分类（Top 10，带计数）；排序支持 相关度 / 最新 / 阅读最多（阅读数取自自建统计，按 `/notes/<slug>` 统计键）。
+- **分页**：`SEARCH_PER_PAGE`（默认 12），链接保留查询与筛选条件；页码越界自动夹到最后一页。
+- **无关键词 / 无结果状态**：前者展示全站统计（内容数、标签数）、热门标签、分类与最新内容；后者给出「缩短关键词 / 用引号精确匹配 / 直接看标签」的建议与热门标签兜底。
+- **实时联想**：`assets/search-suggest.js` 复用公开 API `/api/public/posts?q=`，输入即下拉建议（↑↓ 选择、回车跳转、Esc 与点击外部关闭），无 JS 或接口不可用时表单照常可用；接口失败静默降级。
+- **SEO 与入口**：搜索页注入 `<meta name="robots" content="noindex, follow">`；两个主题的导航区块新增「搜索 →」入口（与「视频库 →」「标签云 →」并列），主题无关样式集中在 `assets/aether-extras.css`。
+- **JSON 输出**：`/search?q=…&format=json` 返回 `terms / relaxed / total / totalPages / facets / results[]`（含 `score`、`hits`、`snippet`、`views`），便于调试、自动化与二次聚合。
+- 查询解析：中文单字可搜、单个拉丁字母忽略、最多 6 个关键词；`,`「，」「。」等标点作分隔符，但保留 `+ # . _ -`（能搜 `c++`、`c#`、`node.js`、`gpt-4` 这类术语）。
+- 说明：`/search` 是内置路由，字面路径优先于自定义页面的 `/:slug`，因此请避免创建同名 slug 的自定义页面。
+
+### 🐛 修复
+
+- **日期排序按星期名比较**：内容管理器把 frontmatter 的日期解析为 `Date` 对象，而 `/videos` 与新的搜索排序原先用 `String(date).localeCompare(...)`，实际比较的是 `"Wed Sep 02 2026 …"` 这样的字符串——结果是「按星期几排序」，月份/日期完全错乱（实测 `/search?sort=newest` 顺序为 09-02、09-01、09-03…）。改为统一用时间戳比较（新增 `dateValue()` 辅助函数），`/videos` 同步修正；日期展示也统一格式化为 `YYYY-MM-DD`。
+
+---
+
+## [0.9.0] - 2026-09-13
+
+### 🆕 视频自动播放与顺序连播
+
+- **打开文章即自动播放**：页面里第一个视频进入视口时自动开始（首屏就有视频则立即开始；视频在折叠线以下时，等访客滚动到它再开始，避免页面偷偷下载没人看的视频）。
+- **多视频顺序连播**：当前视频结束后自动滚动到下一个并接着播放，直到队列播完（控制条提示「已播完 N 个」）；单视频页面同样有控制条，只是不显示「下一个」。
+- **控制条**（页面左下角，只出现在含视频的页面）：`⏸ 停止连播 / ▶ 自动连播`、`第 n/N 个`、`🔊 开声 / 🔇 静音`、`⏭ 下一个`、`↺ 重新播放`。访客的开关与静音选择记在 localStorage，**优先于站点默认值**，之后每次访问都沿用。
+- **为什么默认静音**：现代浏览器一律禁止「带声音的自动播放」，因此自动开始固定使用 `muted=1`；点控制条「🔊 开声」会在**当前进度续播**并带声音（走 PeerTube 的 `start=<秒>s` 参数），不会从头开始。
+- **结束检测怎么做（实测结论）**：播放器在跨域 iframe 内，父页面读不到它的 DOM。**实测 PeerTube 7.3（stream.dleu.net）的 embed 页面不会向父页面发送普通事件**——官方 Embed API 需要嵌入地址带 `?api=1` 并由父页面引入 `@peertube/embed-api`（jschannel 协议）客户端；本项目不引入该依赖（避免额外第三方脚本，也避免把 AGPL 客户端源码内嵌进本仓库）。因此实际做法是：
+  1. **时长计时（主）**：用元数据缓存里的时长（`data-duration`，PeerTube 封面缓存自带）推算结束时刻，届时**先弹出 5 秒倒计时**「当前视频已到预计时长，N 秒后播放下一个」，可点「✋ 取消」留在当前视频继续看——计时无法感知暂停/拖动，所以给访客一个可撤销的机会；
+  2. **本地文件视频（精确）**：`[video:file.mp4]` 直接监听原生 `ended` 事件，播完即刻推进；
+  3. **防御性 postMessage 解析（兜底）**：若某个播放器/版本确实上报事件（`ended`、`playbackState:"ended"`、`position`、`duration` 等形态都做了映射），会自动切换成精确推进，无需改代码；没有上报时这段逻辑完全静默。
+- 细节：自动开始**不抢焦点、不打断阅读位置**（滚动到下一个时用平滑滚动）；自动开始期间覆盖一层「点击播放」，万一浏览器仍拦截自动播放，访客一点即可开始；省流量模式（`saveData` / 2G）下不自动播放；标签页切到后台时暂停推进计时，回到前台按实际进度决定是否续播。
+- 哔哩哔哩：可以自动开始，但**没有时长与结束事件**，队列走到 B 站视频时不会自动跳到下一个，需要点「⏭ 下一个」（PeerTube 与本地文件不受影响）。
+- 新增配置：`VIDEO_AUTOPLAY`（默认 `true`；设为 `false` 时默认不自动播放，但控制条保留，访客可自行开启）、`VIDEO_AUTOPLAY_MUTED`（默认 `true`）。
+- 排查工具：URL 追加 `?aether-video-debug=1` 时，控制条会显示最近收到的播放器事件，控制台打印完整 payload（用于确认/扩展上面的事件解析）。
+- 说明：该运行时由服务端钩子注入，**静态导出（`npm run build`）不包含**（与分享条/OG 的限制一致）；主题若要在导出页也支持，可在布局里自行引入 `/assets/video-playlist.js`（没有配置对象时按「自动播放 + 静音」默认运行）。
+- 实现要点：`assets/video-facade.js` 仍是唯一的 iframe 加载器，新增 `autoplay / muted / start / veil` 选项与 `window.AetherVideoFacade` 接口，`assets/video-playlist.js` 只做队列调度，避免两处重复加载逻辑。
+
+---
+
+## [0.8.0] - 2026-09-13
+
+### 🆕 复合资源增强（第二批：分享与开放接口）
+
+- **附件区块（#7）**：正文里的 `[file:路径|名称]` 自动汇总为文末附件清单——按文件族配图标（PDF/文档/表格/演示/压缩包/文本/视频/音频/图片）、自动换算大小（KB/MB）、支持外链附件、**文件缺失时显式标红**（作者能立刻发现路径写错）；代码块里的示例不会误收集。实现放在 `renderMarkdown()` 内部，因此**前台、后台编辑器预览、静态导出三处自动一致**，且不改任何主题模板。
+- **分享条（#10）**：内容页（文章/页面）自动注入分享条，全部服务端渲染、主题无关：
+  - 🔗 复制链接（含 `execCommand` 兜底，非 HTTPS 环境可用）
+  - 💬 微信 / 🏢 企业微信：点击展开**内联 SVG 二维码**（服务端用 `qrcode` 同步生成，无第三方请求、可离线）
+  - ⭐ QQ空间 / 🐧 QQ：标准网页分享链接
+  - 🖨️ 打印/另存为 PDF：附带打印样式（隐藏导航/分享条/视频遮罩，并把外链地址打印出来）
+  - 🎞️ 原视频：文章含 PeerTube 视频时直达原片
+  - 按需求**不含** Twitter/X、Facebook、微博
+- **公开只读 API + oEmbed（#9）**：
+  - `GET /api/public/site`、`/api/public/posts`（`limit/offset/tag/category/q/hasVideo/hasAttachment`）、`/api/public/posts/:slug?html=1`
+  - `GET /oembed?url=…`：文章 → `type: rich`（iframe + 封面 + 作者）；PeerTube 视频 → `type: video`（标题/缩略图/嵌入 iframe）
+  - CORS 全开放、**仅暴露已发布内容**、不下发内部字段（无 filePath、无原始 frontmatter）、按 IP 限流（默认 120 次/分钟）、列表 15 秒缓存
+  - 开关与限流：`PUBLIC_API_ENABLED`、`PUBLIC_API_RATE_LIMIT`
+- 新增依赖：`qrcode`（二维码，服务端同步生成）
+
+### 🐛 修复
+
+- **框架回调二次写头崩溃**：LiteNode 在中间件提前结束响应后仍会继续分发路由，而它的 `json/html/status` helper 不检查 `headersSent`，会抛 `ERR_HTTP_HEADERS_SENT` 让进程退出。现在全局 `notFound` 与 `onError` 处理器都会先判断 `res.headersSent || res.finished`（这也是安全实现 OPTIONS 预检的前提）。
+- `qrcode` 的 `toString()` 是**异步** API（同步调用会渲染出 `[object Promise]`）：改用同步的 `QRCode.create()` 自行绘制 SVG 矩阵。
+
+---
+
+## [0.7.0] - 2026-09-12
+
+### 🆕 复合资源增强（第一批）
+
+- **PeerTube 元数据集成**：`core/lib/media/peertube.js` 按 shortUUID/UUID 抓取视频元数据（标题/时长/缩略图/频道/发布时间/观看数），缓存于 `content/cache/peertube/<id>.json`（默认 24h TTL、内存+磁盘两级、渲染时零网络）；启动后台预热、文章保存后自动抓取；API 返回的 `http://` 链接统一用 `PEERTUBE_URL` 重建，避免 HTTPS 页面出现混合内容。
+- **视频封面卡 + 点击加载门面**：`[video:…]` 不再直接插入第三方 iframe——文章页渲染为「封面图 + ▶ + 时长」门面，点击后才载入播放器（`<noscript>` 保留兜底 iframe）；首页/分类/标签/自定义列表卡片新增 16:9 封面、播放角标与时长徽标。运行时 `assets/video-facade.js` 仅在含门面的页面注入。
+- **视频库 `/videos`**：聚合全站含视频的内容，封面网格 + 时长/频道/来源徽标 + 标签筛选 + 分页；主题页脚导航新增「视频库」入口。
+- **分享与结构化数据**：主题无关注入 `canonical`、OpenGraph（`video.other`、`og:video`、`og:video:duration`、`og:image` 取视频封面）、Twitter Card 与 JSON-LD（`Article` + `VideoObject`，含 name/duration/thumbnailUrl/uploadDate/embedUrl）。
+- **哔哩哔哩支持**：识别 `bilibili.com/video/BV…`、`av…` 与 `b23.tv` 并转为播放器嵌入（无元数据接口，封面使用占位样式）。
+- 新增配置：`PEERTUBE_URL`、`PEERTUBE_ENABLED`、`PEERTUBE_CACHE_DIR`、`PEERTUBE_CACHE_TTL`、`PEERTUBE_TIMEOUT`（见 `.env.example`）。
+- 说明：代码块/行内代码里的 `[video:…]` 示例不再被当作真实视频（否则会污染视频库与卡片封面）。
+- 说明：**Unlisted 视频可正常抓取封面与元数据**（实测 stream.dleu.net 上 Unlisted 视频匿名返回 200），仅从列表/搜索中隐藏；Private/Internal 才会被拒（降级为占位封面）。
+- **封面自愈**：文章/列表渲染时若某视频元数据尚未缓存，会在后台按需抓取（`ensurePeerTubeMeta`，去重），下次访问即显示封面——存量文章**无需重新发布、无需重启**即可补上封面；静态导出期间不触发网络请求。
+
+### 🔒 安全修复（重要）
+
+- **静态文件越权访问**：LiteNode 会把项目根目录整目录当静态资源公开，线上可直接下载 `/.env`（含 `COOKIE_SECRET`）、`/content/data/users.json`（口令哈希）、`/content/data/sessions.json`（会话令牌）、草稿 Markdown、`content/data/analytics/salt.txt` 以及 `/core/**` 全部源码。
+  - 已在 `core/app.js` 加入**首个中间件护栏**：只放行前端与后台真正需要的静态路径（`/assets/**`、`/content/themes/**`、`/content/uploads/**`、`/core/admin/static/**`），其余命中敏感模式（`.env`、`.git`、`content/data`、`content/cache`、`uploads/*.json`、`release`、`package*.json`、`index.js`、`README/CHANGELOG/LICENSE/DEPLOYMENT-*`、`/core/**`）的请求改写为不存在的路径，交由框架按 404 处理。
+  - ⚠️ **注意**：护栏不能直接 `res.end()`——LiteNode 在中间件之后仍会继续分发路由，二次写头会抛 `ERR_HTTP_HEADERS_SENT` 并让进程崩溃（本地已复现并修正）。
+  - ⚠️ 升级后请**轮换 `COOKIE_SECRET`**（旧值可能已泄露，可据此伪造登录 Cookie）、更换管理员口令；建议同时在 nginx 层加 `deny` 兜底（见 README 部署章节）。
+
+### 🐛 修复
+
+- **列表视频封面"看不见"**：封面容器在没有缩略图（元数据未就绪）时高度塌陷为 0，观感上像"完全没有封面"。现在容器恒为 16:9 并带渐变底色，占位时也显示明显的可点击播放块。
+- **支持独立的 PeerTube API 地址**：新增 `PEERTUBE_API_URL`（可选）。当 CMS 服务器只能经内网访问 PeerTube（如 `http://<内网IP>:9000`）而访客走公网域名时，用它分离"服务端抓取地址"与"对外缩略图/嵌入地址"。
+
+---
+
 ## [0.6.0] - 2026-09-12
 
 ### 🆕 新增功能
