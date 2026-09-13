@@ -61,23 +61,32 @@ xl 站的 `markdown` → `MarkDown` 同理；`心理*`/`情绪*`/`学习*`/`注�
 
 ---
 
-## 3. F 方案：把「学段」从标签里独立出来（待拍板）
+## 3. F 方案：把「学段」从标签里独立出来 —— ✅ 已实施（0.15.0）
 
 **问题**：xl 的内容天然按小学 / 初中 / 高中分（标签计数 7 / 3 / 3），但它是**维度**，和「情绪管理」这类话题标签混在同一个命名空间，导致标签云既不像分类也不像关键词；同时 `初中生心理特点` 这种「带学段的话题」也无法用筛选表达。
 
-**方案（推荐）**：新增独立字段 `stage`，与 `category`/`tags` 平行：
+**已实现**：
 
-- frontmatter 增加 `stage: 小学`（可选，单选）
-- 迁移：把现有 `小学/初中/高中` 三个标签**从 tags 移除**，写入 `stage`；`初中生心理特点` 这类保持为话题标签不动（它本身是话题，不是学段）
-- 展示：文章卡片与文章页显示「学段」徽标；列表页/标签页顶部出现「学段」筛选行（与现有 `filter-chip` 样式一致，链接形如 `/stage/小学`）
-- 新增路由 `/stage/:name`（复用标签页模板与分页），并在 `/api/public/posts` 增加 `?stage=`
-- SEO：`stage` 不进 sitemap 的标签列表，避免与话题标签页面重复
+- frontmatter 新增单值字段 `stage`（归一化与标签一致，`初 中` = `初中`；更新时传空即清除）
+- `/stage` 总览页与 `/stage/<学段>` 列表页：复用主题的分类页模板（卡片与标签页一致），「按学段浏览」筛选条由全局钩子注入，**零主题改动**；非规范写法 301，未知学段 404
+- 两个主题共 8 个模板加上学段徽标（卡片 + 文章页）
+- 公开 API：条目带 `stage`、支持 `?stage=`；新增 `GET /api/stages`
+- 后台编辑器新增「学段」输入 + 既有学段自动补全
+- 站内搜索把学段纳入打分与命中提示
 
-**工作量/风险**：中等。改动集中在 `content-item-manager`（字段读写）、taxonomy 路由（新增一个维度）、主题模板（徽标与筛选行）、公开 API。
-**风险点**：内容模型变更需要一次数据迁移（可由 `tag-merge` 的同款机制实现：把 `小学` 从 tags 移到 stage，带备份与回滚）。
-**不做的替代方案**：保持在 tags 里，只把 `小学/初中/高中` 通过 `tag-aliases.json` 归一到统一写法（零改动，但维度仍然混着）。
+**迁移命令**（改内容文件，带备份/报告/回滚，幂等）：
 
-**需要你回答**：`F` 做不做？做的话迁移是否接受「一次性改写 frontmatter（自动备份 + 可回滚）」？
+```bash
+node tools/tag-merge.mjs --dir content/data --move-to-stage 小学,初中,高中          # 预览
+node tools/tag-merge.mjs --dir content/data --move-to-stage 小学,初中,高中 --apply  # 执行
+node tools/tag-merge.mjs --rollback content/.tag-merge-backups/<时间戳>             # 回滚
+```
+
+只改 `tags:` 与 `stage:` 两行；**已有 `stage` 的文章不会被覆盖**；未指定学段的旧内容不受影响。
+
+**注意**：`/stage/*` 是新增代码路由，需要先部署代码并重启实例；`--move-to-stage` 改的是内容文件，无需重启（下次请求即生效）。
+
+**曾坑（已修）**：迁移最初把「移除学段标签」与「写入 stage 行」两步结果按 `changed` 二选一拼接，导致文章已有 `stage` 时 tags 的改动被丢弃；另外 `contentManager` 门面漏了 `getPostsByStage`/`getStageFrequency` 转发，会让 `/api/stages` 与 `/stage/*` 直接 500。
 
 ---
 
@@ -114,7 +123,16 @@ xl 站的 `markdown` → `MarkDown` 同理；`心理*`/`情绪*`/`学习*`/`注�
 
 **推荐顺序**：**G1 立刻做**（复制一个文件，零风险、当天见效）→ 跑一次 E 的备份 → 视内容规划再决定 G2/G3。
 
-**需要你回答**：只做 G1，还是 G1 + G2（转草稿）？若选 G3（删除），请先跑一次 `.\tools\backup-content.ps1` 留下备份。
+**当前状态**：已确认**只做 G1**（2026-09-13）。剩下的动作是在服务器上复制文件：
+
+```bash
+# xl 实例（/data/te_se_zi_yuan/xl/aether-cms）
+cp <仓库>/docs/tag-aliases/xl.dleu.net.plus-demo-drop.json /data/te_se_zi_yuan/xl/aether-cms/content/data/tag-aliases.json
+# xq 实例（/data/te_se_zi_yuan/xq/aether-cms）
+cp <仓库>/docs/tag-aliases/xq.dleu.net.plus-demo-drop.json /data/te_se_zi_yuan/xq/aether-cms/content/data/tag-aliases.json
+```
+
+（想先只做同义归一的保守版本，就用不带 `.plus-demo-drop` 的那两个文件。）G2/G3 暂不执行。
 
 ---
 

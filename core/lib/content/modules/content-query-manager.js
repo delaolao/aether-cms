@@ -12,6 +12,8 @@ import {
     truncateExcerpt,
     markdownToPlainText,
     transformContentItems,
+    normalizeStageName,
+    compareStageNames,
 } from "../utils/content-utils.js"
 import { canonicalizeTagList, resolveTagIdentifier } from "../utils/tag-aliases.js"
 
@@ -511,6 +513,57 @@ export class ContentQueryManager {
             return transformContentItems(sortedPosts, options)
         } catch (error) {
             console.error("Error getting posts by tag combination:", error)
+            return []
+        }
+    }
+
+    /**
+     * Posts of one 学段（stage）— the single-value dimension that keeps
+     * 「小学/初中/高中」 out of the tag namespace.
+     * @param {string} stage - Stage name (any case/width; normalized before comparing)
+     * @param {Object} options - status / summaryView / previewLength …
+     * @returns {Promise<Array>} Matching posts sorted newest first
+     */
+    async getPostsByStage(stage, options = {}) {
+        const wanted = normalizeStageName(stage).toLowerCase()
+        if (!wanted) return []
+        try {
+            const posts = await getMarkdownFiles(this.postsDir, this.app.parseMarkdownFile.bind(this.app))
+            let filtered = posts
+            if (options.status) {
+                filtered = filtered.filter((post) => post.frontmatter && post.frontmatter.status === options.status)
+            }
+            filtered = filtered.filter(
+                (post) => normalizeStageName(post.frontmatter?.stage).toLowerCase() === wanted
+            )
+            return transformContentItems(sortContentByDate(filtered), options)
+        } catch (error) {
+            console.error("Error getting posts by stage:", error)
+            return []
+        }
+    }
+
+    /**
+     * 学段清单与篇数（按教育阶段排序），供 /stage/:name 的筛选条、后台与 API 使用。
+     * @param {Object} options - { status }
+     * @returns {Promise<Array<{name:string, slug:string, count:number}>>}
+     */
+    async getStageFrequency(options = {}) {
+        try {
+            const posts = await getMarkdownFiles(this.postsDir, this.app.parseMarkdownFile.bind(this.app))
+            const counts = new Map()
+            for (const post of posts) {
+                if (options.status && post.frontmatter?.status !== options.status) continue
+                const stage = normalizeStageName(post.frontmatter?.stage)
+                if (!stage) continue
+                const key = stage.toLowerCase()
+                const entry = counts.get(key) || { name: stage, slug: slugify(stage), count: 0 }
+                entry.count += 1
+                counts.set(key, entry)
+            }
+            return [...counts.values()].sort((a, b) => compareStageNames(a.name, b.name) || b.count - a.count)
+        } catch (error) {
+            console.error("Error collecting stages:", error)
             return []
         }
     }

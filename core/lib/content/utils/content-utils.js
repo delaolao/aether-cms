@@ -63,6 +63,41 @@ export function firstVideoCover(markdown) {
 }
 
 /**
+ * Canonical form of a `stage` value（学段：小学 / 初中 / 高中 …）。
+ *
+ * 学段是**单值维度**，与 tags 分开，避免「小学/初中/高中」把标签云变成
+ * 既不像分类也不像关键词的混合体。归一化规则与标签一致（NFKC / 合并空白 /
+ * 去掉开头 # 与首尾分隔符 / 长度上限），额外去掉内部空格以便
+ * `初 中` 与 `初中` 视为同一学段。
+ *
+ * @param {string} raw
+ * @returns {string} 规范学段名（"" 表示未设置）
+ */
+export function normalizeStageName(raw) {
+    // normalizeTagName 已经合并「中文之间的空格」（初 中 → 初中）并压缩连续空白，
+    // 这里直接复用，避免把英文学段名（Primary School）的空格也吃掉。
+    return normalizeTagName(raw)
+}
+
+/**
+ * 学段的展示顺序：常见学段按教育阶段排序，其余按名称排序。
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+const STAGE_ORDER = ["学前", "幼儿园", "小学", "初中", "高中", "中职", "高职", "大学", "本科", "研究生"]
+export function compareStageNames(a, b) {
+    const ia = STAGE_ORDER.findIndex((name) => String(a).startsWith(name))
+    const ib = STAGE_ORDER.findIndex((name) => String(b).startsWith(name))
+    if (ia !== -1 || ib !== -1) {
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        if (ia !== ib) return ia - ib
+    }
+    return String(a).localeCompare(String(b), "zh-Hans-CN")
+}
+
+/**
  * Convert a string to a URL-friendly slug
  * @param {string} text - Text to convert
  * @returns {string} Slug

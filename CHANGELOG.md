@@ -4,6 +4,36 @@
 
 > 版本号遵循语义化。
 
+## [0.15.0] - 2026-09-13
+
+### 🆕 学段维度（F：把「小学/初中/高中」从标签里独立出来）
+
+线上实测：xl 站 `小学(7)/初中(3)/高中(3)` 是**维度**，却和 `情绪管理(1)` 这类话题标签挤在同一命名空间，标签云因此既不像分类也不像关键词；`初中生心理特点` 这种「带学段的话题」也无法用筛选表达。
+
+- **新字段 `stage`**（单值，与 `category`/`tags` 平行）：`content-item-manager` 在创建与更新时写入；归一化复用标签规则（NFKC / 合并空白 / 去 `#` 与首尾符号 / 长度上限），`初 中` 与 `初中` 视为同一学段；更新时传空字符串即清除该字段
+- **`/stage` 总览页 + `/stage/<学段>` 列表页**（`core/routes/stage.js`）：复用主题的分类页模板（`taxonomyRoute` → `collection.html`），所以卡片与标签页完全一致；顶部「按学段浏览」筛选条通过全局渲染钩子注入，**零主题改动**；非规范写法（`/stage/小 学`）**301** 到规范地址；未知学段 404
+- **学段徽标**：文章卡片（首页 / 分类 / 标签 / 学段页）与文章页 meta 都显示 `🎓 学段`（默认与 ember 两个主题共 8 个模板，样式在 `assets/aether-extras.css`）
+- **公开 API**：条目新增 `stage` 字段，支持 `?stage=<学段>` 过滤；新增公开端点 `GET /api/stages`（学段清单 + 篇数，按教育阶段排序）
+- **后台编辑器**：新增「学段」输入框（`datalist` 自动补全既有学段，`GET /api/stages` 提供数据），保存时随 `metadata.stage` 提交
+- **站内搜索**：学段纳入检索与打分（命中提示显示「学段」）
+- **一次性迁移**（`tools/tag-merge.mjs --move-to-stage 小学,初中,高中`）：把已当作标签使用的学段搬进字段——只改 `tags:` 与 `stage:` 两行、其余字节不变，**已有 `stage` 的文章不会被覆盖**，照旧走备份 / 报告 / `--rollback`；幂等
+- 未指定学段的旧内容不受影响（不出现在任何学段页里）
+
+### 🐛 修复（本轮实测发现）
+
+- **`contentManager` 门面缺方法**：`getPostsByStage` / `getStageFrequency` 只加在 `ContentQueryManager` 上，门面没有转发，导致 `/api/stages` 与 `/stage/*` 全部 500（`contentManager.getStageFrequency is not a function`）。已在 `content-manager.js` 补上转发。
+- **迁移时「stage 行本来就正确」会吞掉 tags 的改动**：`--move-to-stage` 先移除学段标签、再写 `stage` 行，最初用 `stageResult.changed ? stageResult.text : tagResult.text` 组合两步结果——当 `stage` 行无需变化时（例如文章已有 `stage: "初中"`），tags 的改动被丢弃，文件完全没被改写。已改为始终串联两步结果。
+
+### ✅ 验证证据
+
+- 临时脚本（已删）26/26 通过：
+  - **迁移**：预览不写盘 → `--apply` 后 `stage: "小学"` 写入且 `tags` 里不再有「小学」→ 已有 `stage: "初中"` 的文章**未被覆盖**且其学段标签被正确移除 → 无关文件逐字节不变 → manifest 记录 `moveToStage` 与学段前后值 → **幂等**（第二次 0 改动）→ `--rollback` 逐字节还原
+  - **线上**（本地实例真实内容打上 `stage: "小学"`）：`GET /api/stages` 返回清单与篇数；`/stage` 总览 200；`/stage/小学` 200 且含筛选条、文章卡片与 `post-stage` 徽标；`/stage/小 学` → **301** 到 `/stage/小学`；未知学段 → 404；`/api/public/posts?stage=小学` 过滤生效且条目带 `stage`；文章页显示学段徽标
+  - **编辑器**：`/aether/posts/edit` 渲染出 `#stageInput` 与 `#stageSuggestions` 自动补全
+  - **搜索**：`q=小学` 命中该学段文章，`hits.stage = 1`
+
+---
+
 ## [0.14.0] - 2026-09-13
 
 ### 🆕 `--emit-aliases`：一键生成可直接使用的别名文件（G1 的落地方式）

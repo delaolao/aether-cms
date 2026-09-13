@@ -157,6 +157,27 @@ export class ContentManager {
         return await this.queryManager.getPostsByTagCombination(tagSlugs, options)
     }
 
+    /**
+     * Get published posts of one 学段（stage）— the single-value dimension that
+     * keeps 小学/初中/高中 out of the tag namespace.
+     * @param {string} stage - Stage name (any case/width)
+     * @param {Object} options - Additional options (status, summaryView, …)
+     * @returns {Array} Matching posts
+     */
+    async getPostsByStage(stage, options = {}) {
+        return await this.queryManager.getPostsByStage(stage, options)
+    }
+
+    /**
+     * Stage list with post counts, ordered by education stage
+     * (学前 → 小学 → 初中 → 高中 → …).
+     * @param {Object} options - { status }
+     * @returns {Promise<Array<{name:string, slug:string, count:number}>>}
+     */
+    async getStageFrequency(options = {}) {
+        return await this.queryManager.getStageFrequency(options)
+    }
+
     // PAGES MANAGEMENT
     // ---------------
 

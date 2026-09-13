@@ -3,7 +3,7 @@
  */
 import { join } from "node:path"
 import { ensureDirectory, findMarkdownFileByProperty, writeMarkdownFile, deleteFile } from "../utils/file-utils.js"
-import { slugify, normalizeTagList } from "../utils/content-utils.js"
+import { slugify, normalizeTagList, normalizeStageName } from "../utils/content-utils.js"
 import { serializeFrontmatter } from "../utils/yaml-utils.js"
 
 export class ContentItemManager {
@@ -104,6 +104,10 @@ export class ContentItemManager {
             if (metadata.excerpt) {
                 frontmatter.excerpt = metadata.excerpt
             }
+
+            // 学段（stage）：单值维度，把「小学/初中/高中」从标签里独立出来
+            const stage = normalizeStageName(metadata.stage)
+            if (stage) frontmatter.stage = stage
 
             // Add categories/tags/relatedPosts if provided (for posts)
             if (isPost) {
@@ -214,6 +218,13 @@ export class ContentItemManager {
             // Canonicalize tags on update as well (see createContent above).
             if (updatedFrontmatter.tags !== undefined && updatedFrontmatter.tags !== null) {
                 updatedFrontmatter.tags = normalizeTagList(updatedFrontmatter.tags)
+            }
+
+            // 学段：显式传了才动它；传空字符串表示清除该字段
+            if (metadata.stage !== undefined && metadata.stage !== null) {
+                const stage = normalizeStageName(metadata.stage)
+                if (stage) updatedFrontmatter.stage = stage
+                else delete updatedFrontmatter.stage
             }
 
             // Use updated content field if provided or keep original

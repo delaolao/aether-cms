@@ -28,7 +28,7 @@
 
 import { prepareTemplateData, processTemplateData } from "../utils/route-utils.js"
 import { resolveTemplatePath } from "../utils/template-utils.js"
-import { markdownToPlainText, slugify, truncateExcerpt } from "../lib/content/utils/content-utils.js"
+import { markdownToPlainText, slugify, truncateExcerpt, normalizeStageName } from "../lib/content/utils/content-utils.js"
 import { canonicalizeTagList, resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
 
 /** Results per page (SEARCH_PER_PAGE, default 12). */
@@ -145,6 +145,8 @@ function toDocument(item, type) {
         date: dateIso(rawDate),
         dateTime: dateValue(rawDate),
         category: fm.category || "",
+        // 学段（单值维度）也参与检索：搜「小学」应能找到该学段的文章
+        stage: normalizeStageName(fm.stage),
         // Alias-canonicalized so facets/links/counts merge (cpu + 中央处理器 → one entry)
         tags: canonicalizeTagList(normalizeTagList(fm.tags)),
         author: fm.author || "",
@@ -154,6 +156,7 @@ function toDocument(item, type) {
         _subtitle: String(fm.subtitle || "").toLowerCase(),
         _tags: normalizeTagList(fm.tags).join(" ").toLowerCase(),
         _category: String(fm.category || "").toLowerCase(),
+        _stage: String(normalizeStageName(fm.stage)).toLowerCase(),
         _author: String(fm.author || "").toLowerCase(),
         _slug: slug.toLowerCase(),
         _text: text.toLowerCase(),
@@ -214,6 +217,10 @@ function scoreDocument(doc, query, { requireAll }) {
         if (doc._category.includes(needle)) {
             termScore += 5 * weight
             hits.category += 1
+        }
+        if (doc._stage && doc._stage.includes(needle)) {
+            termScore += 6 * weight
+            hits.stage = (hits.stage || 0) + 1
         }
         if (doc._slug.includes(needle)) termScore += 4
         if (doc._author.includes(needle)) termScore += 2
@@ -317,6 +324,7 @@ function resultItem(entry, terms) {
     if (entry.hits.title) hitNotes.push("标题")
     if (entry.hits.tags) hitNotes.push("标签")
     if (entry.hits.category) hitNotes.push("分类")
+    if (entry.hits.stage) hitNotes.push("学段")
     if (entry.hits.subtitle) hitNotes.push("副标题")
     if (entry.hits.body) hitNotes.push(`正文 ${entry.hits.body} 处`)
 

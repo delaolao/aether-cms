@@ -225,6 +225,11 @@ export class ContentService {
             if (enhancementValues.parentPage !== undefined) {
                 contentData.metadata.parentPage = enhancementValues.parentPage
             }
+
+            // 学段（stage）：单值维度；空字符串表示清除该字段
+            if (enhancementValues.stage !== undefined) {
+                contentData.metadata.stage = enhancementValues.stage || null
+            }
         }
 
         // Add related posts data if module is available

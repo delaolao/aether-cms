@@ -49,6 +49,7 @@ function parseArgs(argv) {
         to: "",
         drop: "",
         only: "auto,strong",
+        moveToStage: "",
         apply: false,
         dryRun: false,
         alsoAlias: false,
@@ -74,6 +75,7 @@ function parseArgs(argv) {
             case "--from": args.from = value(); break
             case "--to": args.to = value(); break
             case "--drop": args.drop = value(); break
+            case "--move-to-stage": args.moveToStage = value(); break
             case "--only": args.only = value(); break
             case "--rollback": args.rollback = value(); break
             case "--apply": args.apply = true; break
@@ -91,8 +93,10 @@ function parseArgs(argv) {
                 process.exit(2)
         }
     }
-    if (!args.plan && !args.from && !args.drop && !args.rollback) {
-        console.error("请提供 --plan <方案文件>、或 --from A,B --to C、或 --drop A,B、或 --rollback <备份目录>")
+    if (!args.plan && !args.from && !args.drop && !args.moveToStage && !args.rollback) {
+        console.error(
+            "请提供 --plan <方案文件>、或 --from A,B --to C、或 --drop A,B、或 --move-to-stage 小学,初中,高中、或 --rollback <备份目录>"
+        )
         process.exit(2)
     }
     return args
@@ -258,6 +262,42 @@ function collectContentFiles(dataDir) {
     return files
 }
 
+/**
+ * 把 `stage:` 行写入（或替换 / 删除）frontmatter，其余字节原样保留。
+ * 用于 F 的一次性迁移：把「小学/初中/高中」从 tags 移到独立字段。
+ * @returns {{changed: boolean, before: string, after: string, text: string}}
+ */
+function rewriteStageLine(text, value) {
+    const match = FRONTMATTER_RE.exec(text)
+    if (!match) return { changed: false, before: "", after: "", text }
+    const head = match[1]
+    const body = match[2]
+    const tail = match[3]
+    const rest = text.slice(match[0].length)
+    const lines = body.split(/\r?\n/)
+    const newline = body.includes("\r\n") ? "\r\n" : "\n"
+    const lineIndex = lines.findIndex((line) => /^\s*stage\s*:/.test(line))
+    const before = lineIndex === -1 ? "" : lines[lineIndex].replace(/^\s*stage\s*:\s*/, "").trim().replace(/^["']|["']$/g, "")
+    const after = value ? String(value) : ""
+
+    if (before === after) return { changed: false, before, after, text }
+
+    if (after) {
+        if (lineIndex === -1) {
+            // 插到 slug/status 之后（不存在则追加到 frontmatter 末尾）
+            const anchor = lines.findIndex((line) => /^\s*(status|slug)\s*:/.test(line))
+            const insertAt = anchor === -1 ? lines.length : anchor + 1
+            lines.splice(insertAt, 0, `stage: ${JSON.stringify(after)}`)
+        } else {
+            lines[lineIndex] = `stage: ${JSON.stringify(after)}`
+        }
+    } else if (lineIndex !== -1) {
+        lines.splice(lineIndex, 1)
+    }
+
+    return { changed: true, before, after, text: head + lines.join(newline) + tail + rest }
+}
+
 // ---------------------------------------------------------------------------
 // 回滚
 // ---------------------------------------------------------------------------
@@ -348,7 +388,11 @@ if (args.drop) {
 
 const dropSet = new Set(dropList.map((t) => t.toLowerCase()))
 
-if (mergeMap.size === 0 && dropSet.size === 0) {
+// F：把学段标签（小学/初中/高中…）从 tags 迁到独立字段 stage
+const stageMoves = (args.moveToStage || "").split(",").map((s) => normalizeTagName(s)).filter(Boolean)
+const stageMoveSet = new Set(stageMoves.map((s) => s.toLowerCase()))
+
+if (mergeMap.size === 0 && dropSet.size === 0 && stageMoveSet.size === 0) {
     console.log("没有任何合并/删除规则，未做任何修改。")
     if (skipped.review || skipped.dropDemoTags || skipped.autoMerge || skipped.strongMerge) {
         console.log(
@@ -365,7 +409,7 @@ const files = collectContentFiles(dataDir)
 const changes = []
 for (const file of files) {
     const text = readFileSync(file.path, "utf8")
-    const result = rewriteTags(text, (tags) => {
+    const tagResult = rewriteTags(text, (tags) => {
         const out = []
         const seen = new Set()
         for (const tag of tags) {
@@ -378,7 +422,46 @@ for (const file of files) {
         }
         return out
     })
-    if (result.changed) changes.push({ ...file, ...result })
+
+    // F：把学段标签从 tags 移到 stage 字段（保留原学段，不覆盖作者已填的值）
+    let finalText = tagResult.text
+    let stageBefore = ""
+    let stageAfter = ""
+    let movedFrom = ""
+    if (stageMoveSet.size) {
+        const matched = tagResult.before
+            .concat(tagResult.after)
+            .find((tag) => stageMoveSet.has(tag.toLowerCase()))
+        if (matched) {
+            const existing = /(?:^|\n)stage\s*:\s*"?([^"\n]*)"?/.exec(text)
+            const currentStage = existing ? existing[1].trim() : ""
+            const targetStage = currentStage || matched
+            // 先把学段标签从 tags 里移除，再写 stage 行；两步的结果必须串起来，
+            // 否则「stage 行本来就正确」时会把 tags 的改动丢掉（曾经的 bug）。
+            const withoutStageTag = rewriteTags(finalText, (tags) =>
+                tags.filter((tag) => !stageMoveSet.has(tag.toLowerCase()))
+            )
+            const stageResult = rewriteStageLine(withoutStageTag.text, targetStage)
+            finalText = stageResult.text
+            stageBefore = stageResult.before
+            stageAfter = stageResult.after
+            movedFrom = matched
+        }
+    }
+
+    if (finalText !== text) {
+        const finalTags = rewriteTags(finalText, (tags) => tags)
+        changes.push({
+            path: file.path,
+            kind: file.kind,
+            before: tagResult.before,
+            after: finalTags.before,
+            stageBefore,
+            stageAfter,
+            movedFrom,
+            text: finalText,
+        })
+    }
 }
 
 // 3) 预览
@@ -388,6 +471,7 @@ console.log(`数据目录 : ${dataDir}`)
 if (planNote) console.log(`方案     : ${planNote}`)
 console.log(`合并规则 : ${mergeMap.size} 条${mergeMap.size ? ` → ${[...mergeMap.entries()].map(([a, b]) => `${a}→${b}`).join(", ")}` : ""}`)
 if (dropSet.size) console.log(`删除规则 : ${dropSet.size} 条 → ${[...dropSet].join(", ")}`)
+if (stageMoveSet.size) console.log(`学段迁移 : tags 中的 ${stageMoves.join(", ")} 将移入 stage 字段（不覆盖已有 stage）`)
 if (skipped.autoMerge || skipped.strongMerge || skipped.review || skipped.dropDemoTags) {
     console.log(
         `已跳过   : review ${skipped.review} 条（需 --only review）、dropDemoTags ${skipped.dropDemoTags} 个（需 --drop-demo）、` +
@@ -404,6 +488,11 @@ for (const change of changes) {
     console.log(`  ${relative(dataDir, change.path)}`)
     console.log(`    原: [${change.before.join(", ")}]`)
     console.log(`    新: [${change.after.join(", ")}]`)
+    if (change.stageAfter !== undefined && change.movedFrom) {
+        console.log(
+            `    学段: ${change.stageBefore && change.stageBefore !== change.stageAfter ? `「${change.stageBefore}」→ ` : ""}「${change.stageAfter}」（来自标签「${change.movedFrom}」）`
+        )
+    }
 }
 
 if (!args.apply) {
@@ -422,14 +511,22 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "-").s
 const backupDir = resolve(dataDir, "..", ".tag-merge-backups", stamp)
 mkdirSync(backupDir, { recursive: true })
 
-const manifest = { createdAt: new Date().toISOString(), dataDir, plan: args.plan ? resolve(args.plan) : "", mergeMap: Object.fromEntries(mergeMap), drop: [...dropSet], files: [] }
+const manifest = { createdAt: new Date().toISOString(), dataDir, plan: args.plan ? resolve(args.plan) : "", mergeMap: Object.fromEntries(mergeMap), drop: [...dropSet], moveToStage: stageMoves, files: [] }
 for (const change of changes) {
     const backupName = `${change.kind}__${basename(change.path)}`
     copyFileSync(change.path, join(backupDir, backupName))
     const tmp = `${change.path}.tag-merge.tmp-${process.pid}`
     writeFileSync(tmp, change.text, "utf8")
     renameSync(tmp, change.path)
-    manifest.files.push({ path: change.path, backup: backupName, before: change.before, after: change.after, bytes: statSync(change.path).size })
+    manifest.files.push({
+        path: change.path,
+        backup: backupName,
+        before: change.before,
+        after: change.after,
+        stageBefore: change.stageBefore || "",
+        stageAfter: change.stageAfter || "",
+        bytes: statSync(change.path).size,
+    })
 }
 
 // 5) 可选：把合并结果写进别名表，保证老链接 301 与漏网内容仍能归一

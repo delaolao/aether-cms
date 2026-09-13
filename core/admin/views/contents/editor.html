@@ -322,6 +322,14 @@
                     </div>
                 </div>
 
+                <!-- Stage Field（学段：单值维度，避免与标签混在一起） -->
+                <div class="form-group">
+                    <label for="stageInput" data-i18n="editor_stage">Stage</label>
+                    <input type="text" id="stageInput" list="stageSuggestions" data-i18n-placeholder="editor_stagePlaceholder" placeholder="如：小学 / 初中 / 高中" />
+                    <datalist id="stageSuggestions"></datalist>
+                    <p class="help-text" data-i18n="editor_stageHelp">学段是独立维度（不属于标签），用于「按学段浏览」筛选；留空表示不指定。</p>
+                </div>
+
                 <!-- Tags Field -->
                 <div class="form-group">
                     <label for="tags" data-i18n="editor_tags">Tags</label>

@@ -57,6 +57,11 @@ export class EditorEnhancements {
 
         this.publishDateInput = document.getElementById("publishDate")
 
+        // 学段（stage）：单值维度，独立于标签
+        this.stageInput = document.getElementById("stageInput")
+        this.stageSuggestionsList = document.getElementById("stageSuggestions")
+        this.existingStages = []
+
         // Existing-tag suggestions (see loadTagSuggestions)
         this.tagSuggestionsList = document.getElementById("tagSuggestions")
         this.existingTagsBox = document.getElementById("existingTagsBox")
@@ -98,6 +103,9 @@ export class EditorEnhancements {
         // Offer the tags the site already uses (autocomplete + clickable chips)
         this.loadTagSuggestions()
 
+        // Load the stages the site already uses (学段是独立维度)
+        this.loadStageSuggestions()
+
         // Listen for content loaded event to ensure we get the data
         document.addEventListener("editor:contentLoaded", (event) => {
             // Load categories and tags from the loaded content
@@ -129,6 +137,29 @@ export class EditorEnhancements {
             this.existingTags = []
         }
         this.renderTagSuggestions()
+    }
+
+    /** Load the stages already used on the site (GET /api/stages) into a datalist. */
+    async loadStageSuggestions() {
+        try {
+            const res = await fetch("/api/stages", { credentials: "same-origin" })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const json = await res.json()
+            const stages = Array.isArray(json.stages) ? json.stages : []
+            this.existingStages = stages
+                .filter((stage) => stage && stage.name)
+                .map((stage) => ({ name: String(stage.name), count: Number(stage.count) || 0 }))
+        } catch (error) {
+            this.existingStages = []
+        }
+        if (!this.stageSuggestionsList) return
+        this.stageSuggestionsList.innerHTML = ""
+        for (const stage of this.existingStages) {
+            const option = document.createElement("option")
+            option.value = stage.name
+            option.label = `${stage.count} 篇`
+            this.stageSuggestionsList.appendChild(option)
+        }
     }
 
     /** Render the datalist + the reusable-tag chips. */
@@ -497,6 +528,11 @@ export class EditorEnhancements {
                         this.categories = [frontmatter.category[0]]
                     }
                 }
+
+                // Load 学段（stage）
+                if (this.stageInput) {
+                    this.stageInput.value = normalizeTagName(frontmatter.stage || "")
+                }
             }
         }
 
@@ -832,6 +868,8 @@ export class EditorEnhancements {
             publishDate: this.publishDateInput ? this.publishDateInput.value : null,
             tags: this.tags,
             category: this.categories.length > 0 ? this.categories[0] : null,
+            // 学段（单值维度）：空字符串表示清除
+            stage: this.stageInput ? normalizeTagName(this.stageInput.value) : null,
             // Include removal flags so the ContentService knows these were explicitly removed
             removedTags: Array.from(this.removedTags),
             removedCategory: this.removedCategory,

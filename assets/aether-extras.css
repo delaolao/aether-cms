@@ -994,6 +994,37 @@
     gap: 0.4rem;
     margin: 0.45rem 0 0;
 }
+/* --- 学段（stage）维度：卡片与文章页上的徽标 + 学段筛选条 --- */
+.post-stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.05em 0.55em;
+    border-radius: 999px;
+    background: rgba(46, 125, 50, 0.1);
+    border: 1px solid rgba(46, 125, 50, 0.25);
+    color: #2e7d32;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.post-stage::before {
+    content: "🎓";
+    font-weight: 400;
+}
+.post-stage:hover {
+    background: rgba(46, 125, 50, 0.18);
+}
+.stage-filter-bar .tag-filter-title {
+    font-weight: 700;
+}
+@media print {
+    .post-stage {
+        display: none !important;
+    }
+}
+
 .chip-mini {
     font-size: 0.74rem;
     padding: 0.28em 0.6em;

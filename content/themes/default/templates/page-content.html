@@ -5,6 +5,7 @@
 
     {{#if metadata.pageType === "normal"}}
     <div class="page-meta">
+        {{#if metadata.stage}}<a class="post-stage" href="/stage/{{metadata.stage}}" title="学段">{{metadata.stage}}</a>{{/if}}
         <span class="post-views" title="阅读次数">👁 {{ viewCount || 0 }}</span>
     </div>
     <div class="page-content">{{ content }}</div>

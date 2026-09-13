@@ -42,6 +42,19 @@ export function setupContentApi(app, systems) {
         }
     })
 
+    // Stage list with counts (小学/初中/高中 …). Public like /api/tags: the
+    // admin editor uses it for autocomplete and the frontend may use it for
+    // stage navigation.
+    app.get("/api/stages", async (req, res) => {
+        try {
+            const stages = await contentManager.getStageFrequency({ status: "published" })
+            res.json({ success: true, stages })
+        } catch (error) {
+            console.error("Stage frequency error:", error)
+            res.status(500).json({ success: false, error: error.message })
+        }
+    })
+
     // Wikilink index: title → URL map for [[wikilink]] resolution (used by the
     // admin editor preview to match frontend rendering).
     app.get("/api/wikilinks", authenticate, async (req, res) => {

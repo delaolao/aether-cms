@@ -23,6 +23,7 @@
                 <div class="post-meta">
                     <span class="post-date">{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}</span>
                     <span class="post-author">By {{ metadata.author }}</span>
+                    {{#if metadata.stage}}<a class="post-stage" href="/stage/{{metadata.stage}}" title="学段">{{metadata.stage}}</a>{{/if}}
                     <span class="post-views" title="阅读次数">👁 {{ metadata.viewCount || 0 }}</span>
                 </div>
                 <div class="post-excerpt">

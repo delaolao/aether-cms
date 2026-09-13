@@ -15,7 +15,7 @@
  * limit protects the process. Disable everything with PUBLIC_API_ENABLED=false.
  */
 
-import { detectMediaBadges, markdownToPlainText } from "../lib/content/utils/content-utils.js"
+import { detectMediaBadges, markdownToPlainText, normalizeStageName } from "../lib/content/utils/content-utils.js"
 import { canonicalizeTagList, resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
 import { extractFileDirectives } from "../lib/media/attachments.js"
 import { extractVideoDirectives, firstVideoCover } from "../lib/content/utils/content-utils.js"
@@ -71,6 +71,8 @@ function toPublicItem(post, { analyticsStore } = {}) {
         url: `/notes/${fm.slug || ""}`,
         excerpt,
         category: fm.category || "",
+        // 学段（单值维度，与 tags 分开）
+        stage: normalizeStageName(fm.stage),
         // Alias-canonicalized: two names for the same concept are reported once.
         tags: canonicalizeTagList(normalizeTags(fm.tags)),
         author: fm.author || "",
@@ -165,6 +167,7 @@ export function setupPublicApi(app, systems) {
             const offset = Math.max(parseInt(params?.get("offset") || "0", 10) || 0, 0)
             const tag = (params?.get("tag") || "").trim().toLowerCase()
             const category = (params?.get("category") || "").trim().toLowerCase()
+            const stage = normalizeStageName(params?.get("stage") || "").toLowerCase()
             const query = (params?.get("q") || "").trim().toLowerCase()
             const onlyVideo = /^(1|true|yes)$/i.test(params?.get("hasVideo") || "")
             const onlyAttachment = /^(1|true|yes)$/i.test(params?.get("hasAttachment") || "")
@@ -186,6 +189,7 @@ export function setupPublicApi(app, systems) {
                 items = items.filter((item) => item.tags.some((t) => String(t).toLowerCase() === canonicalTag))
             }
             if (category) items = items.filter((item) => String(item.category).toLowerCase() === category)
+            if (stage) items = items.filter((item) => String(item.stage || "").toLowerCase() === stage)
             if (onlyVideo) items = items.filter((item) => item.media.hasVideo)
             if (onlyAttachment) items = items.filter((item) => item.media.hasAttachment)
             if (query) {
