@@ -4,6 +4,17 @@
 
 > 版本号遵循语义化。
 
+## [0.10.1] - 2026-09-13
+
+### 🔐 安全运维工具（配合敏感路径护栏）
+
+- **`tools/rotate-security.ps1`**：一键完成服务器侧安全收尾——每个实例备份 `.env` → 生成**各自独立**的新 `COOKIE_SECRET`（保留原权限位）→ 重置管理员口令（三实例同一口令，经环境变量传递，不出现在 `ps` 进程列表中）→ 清空 `sessions.json` → 执行重启 → 复核 `/.env` 必须 404、首页必须 200。支持 `-CheckOnly`（只读体检：打印各实例密钥**长度与 sha256 指纹**而非密钥本身、其它疑似密钥键名、PORT、node/openssl/curl 可用性、数据文件与 salt 是否存在、tmux/pm2 守护情况）、`-DryRun`、`-ShowRemoteScript`、`-RotateAnalyticsSalt`、`-KeepSessions`、`-SkipSecret`、`-SkipPassword`。
+- **`tools/reset-admin-password.mjs`**：不依赖登录态直接重置口令（复用应用自身的 scrypt 参数与自描述哈希格式，写入前自检、原子替换、旧文件备份为 `users.json.bak-*`），支持 `--list` / `--generate` / `--password` / `AE_NEW_PASSWORD`（口令不进 `ps`）/ `--clear-sessions` / `--data-dir` / `--dry-run`。
+- 说明：统计用的加盐哈希盐值（`content/data/analytics/salt.txt` 或 `.env` 的 `ANALYTICS_SALT`）同样曾随 `content/data` 暴露，泄露后可结合明细日志暴力枚举访客 IP，因此提供 `-RotateAnalyticsSalt` 一并轮换（重启后自动生成新盐；历史聚合数字不受影响，仅后续 UV 去重改用新盐）。
+- README 新增「安全收尾（密钥与口令轮换）」章节：体检 → 轮换 → 复核的完整步骤与 nginx `deny` 兜底建议。
+
+---
+
 ## [0.10.0] - 2026-09-13
 
 ### 🆕 站内搜索（#8）

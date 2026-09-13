@@ -213,6 +213,56 @@ server {
 
 ---
 
+## 🔐 安全收尾（密钥与口令轮换）
+
+一旦 `content/data`、`.env` 曾被公网访问过，**应用层的 404 护栏只是关上了门，已泄露的钥匙必须更换**。本仓库提供两个配套工具：
+
+### 1) 只读体检（零风险，先跑这个）
+
+```powershell
+.\tools\rotate-security.ps1 -CheckOnly
+```
+
+输出每个实例的：`COOKIE_SECRET` 长度与 sha256 指纹（不显示密钥本身）、`.env` 里其它疑似密钥的**键名**、`PORT`、`node/openssl/curl/sha256sum` 是否可用、`users.json/sessions.json/salt.txt` 是否存在、本机 `curl` 复核首页与 `/.env`、以及 tmux/pm2 守护情况。用来确定「重启命令该怎么写」。
+
+### 2) 轮换 COOKIE_SECRET + 重置管理员口令
+
+```powershell
+# 先看远端会执行什么（推荐）
+.\tools\rotate-security.ps1 -ShowRemoteScript
+
+# 正式执行（scp 一次 + ssh 一次，各需输入一次服务器密码）
+.\tools\rotate-security.ps1 -RestartCommand 'pm2 restart all'
+# tmux 守护时：-RestartCommand 'true'，随后按体检结果手动重启会话
+# 只读体检里若显示 .env 里有 ANALYTICS_SALT / salt.txt，建议同时加 -RotateAnalyticsSalt
+```
+
+每个实例都会：备份 `.env` 到 `~/.aether-security-backups/<时间戳>/` → 生成**各自独立**的新 `COOKIE_SECRET`（保留原文件权限位）→ 重置管理员口令（三个实例同一口令，通过环境变量传递，不出现在 `ps` 里）→ 清空 `sessions.json`（所有旧登录态立即失效）→ 重启 → 复核 `/.env` 必须 404、首页必须 200。
+
+### 3) 单独重置口令（本地或服务器上均可）
+
+```bash
+node tools/reset-admin-password.mjs --list                 # 看有哪些账号
+node tools/reset-admin-password.mjs --generate             # 生成 20 位强口令并更新
+node tools/reset-admin-password.mjs --password '新口令' --clear-sessions
+AE_NEW_PASSWORD='新口令' node tools/reset-admin-password.mjs   # 口令不进 ps
+```
+
+复用应用自身的 scrypt 参数（`scrypt$N$r$p$salt$key`），写入前会自检；改动是原子的，旧文件备份为 `users.json.bak-<时间戳>`。
+
+### 4) 复核清单
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://xl.dleu.net/.env                    # 期望 404
+curl -s -o /dev/null -w '%{http_code}\n' https://xl.dleu.net/content/data/users.json # 期望 404
+```
+
+- 若 `.env` 里还存有其它密钥（体检会列出键名），一并轮换
+- 建议在 nginx 层再加一道 `location ~ /\.(env|git) { deny all; }` 之类的兜底
+- 轮换 `COOKIE_SECRET` 会让所有已登录用户（包括你自己）需要重新登录，这是预期行为
+
+---
+
 ## 📄 许可证与致谢
 
 本项目遵循 **GNU General Public License v3.0 or later (GPL-3.0-or-later)**，基于以下开源项目构建：
