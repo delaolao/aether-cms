@@ -138,12 +138,22 @@ cp <仓库>/docs/tag-aliases/xq.dleu.net.plus-demo-drop.json /data/te_se_zi_yuan
 
 ## 5. 尚未完成的两件操作（需要你来跑）
 
-1. **首份内容备份**（当前最大风险：`content/data` 与 `content/uploads` 零备份）
-   ```powershell
-   cd D:\teacherGeng\AetherCMS\aether-cms
-   .\tools\backup-content.ps1          # 会输出三个实例的真实文章数/上传文件数/体积
-   ```
-2. **部署**：`.\tools\sync-today-to-server.ps1 -RunNpmInstall`（清单已含本批 21 新增 + 46 修改 = 66 个文件）+ 重启三个实例（会话 0/10/11）。
+1. ~~**首份内容备份**~~ ✅ **已完成（2026-09-13 19:56）**
+
+   三个实例的真实体量（内容极小，每晚快照成本几乎为零）：
+
+   | 实例 | 文章 | 上传文件 | data | uploads | 归档 |
+   |---|---|---|---|---|---|
+   | `/home/admin/aether-cms` | 14 | 6 | 62 KB | 174 KB | 187 KB |
+   | `/data/te_se_zi_yuan/xl/aether-cms` | 20 | 10 | 191 KB | 715 KB | 745 KB |
+   | `/data/te_se_zi_yuan/xq/aether-cms` | 15 | 12 | 80 KB | 842 KB | 848 KB |
+
+   本机留档：`%USERPROFILE%\aether-content-backups\<时间戳>\`，每份归档都通过 **sha256 + tar 条目数**双重校验。
+   ⚠️ 首次运行（`20260913-195032`）因为「三个实例目录同名导致归档互相覆盖」的 bug 只保住了 xq 一份（已修复并提交 `a639677`）；
+   那份旧目录可以直接删除：`Remove-Item "$env:USERPROFILE\aether-content-backups\20260913-195032" -Recurse -Force`，
+   服务器上的旧目录同理：`rm -rf ~/aether-content-backups/aether-content-20260913-195032`。
+
+2. **部署**：`.\tools\sync-today-to-server.ps1 -RunNpmInstall`（清单已含本批 22 新增 + 49 修改 = 70 个文件）+ 重启三个实例（会话 0/10/11）。
 
 ---
 
