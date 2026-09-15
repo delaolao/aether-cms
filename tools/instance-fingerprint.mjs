@@ -29,6 +29,7 @@
  *   --compare <file>   与另一份指纹比对（当作"实例侧"）
  *   --against <file>   比对基准（当作"仓库侧"，默认当前 --root 生成的指纹）
  *   --exclude <name>   追加排除的目录名（可重复）
+ *   --ignore <file>    忽略清单文件（默认取 <root>/.fingerprint-ignore）
  *   --json             指纹输出为 JSON（便于二次处理）
  *   --quiet            只输出结论行
  *   --verbose          差异清单不折叠（默认按目录分组，大组只给计数）
@@ -44,14 +45,54 @@
  *   文件名：`.env` 及其变体（**绝不入库，也不该出现在"要回收"清单里**）、本工具自己的 `*.fingerprint.txt` 输出
  *   ⚠️ `content/themes/**` **参与比对** —— 模板定制正是最需要被发现的差异。
  *
+ * 忽略清单（`.fingerprint-ignore`）：
+ *   房间里的常驻噪声 —— 本机专用脚本（`tools/*.ps1` 从本机 ssh 出去，本就不该部署到服务器）、
+ *   纯文档、以及记录在册的实例资产（如从主题市场装的第三方主题）—— 写在仓库根的
+ *   `.fingerprint-ignore` 里（一行一个路径，`/` 结尾表示整个目录，`#` 注释）。
+ *   这样例行核对才能**真正归零**：任何新冒出来的差异都是值得看一眼的东西，
+ *   而不是被十几个"设计如此"的条目淹没。
+ *
  * 哈希口径：**删除所有 CR 字节**（等价于 `tr -d '\r'`）后再算 sha256。
  * 这样 Linux 侧的纯 shell 兜底命令（find + sha256sum + tr -d '\r'）与本工具结果逐字节一致 ——
  * 早期版本只在本地做 CRLF→LF 配对替换，遇到二进制文件里孤立的 0x0D 字节就会误报
  * （实测：default 主题的 screenshot.avif 被误判为 DIFFERS）。
  */
-import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs"
+import { readdirSync, readFileSync, writeFileSync, statSync, existsSync } from "node:fs"
 import { join, resolve, relative, basename } from "node:path"
 import { createHash } from "node:crypto"
+
+// 忽略清单文件名（放在仓库根；比对时从 --root 或 --ignore 指定的位置读取）
+const IGNORE_FILE_NAME = ".fingerprint-ignore"
+
+/**
+ * 读取忽略清单。一行一个路径；以 `/` 结尾表示整个目录；`#` 开头为注释。
+ * 文件不存在时返回空数组（不是错误）。
+ */
+function loadIgnoreList(baseDir) {
+    const file = join(resolve(baseDir), IGNORE_FILE_NAME)
+    if (!existsSync(file)) return []
+    try {
+        return readFileSync(file, "utf8")
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter((line) => line && !line.startsWith("#"))
+    } catch {
+        return []
+    }
+}
+
+/** 是否命中忽略清单（忽略清单文件自身永远忽略，否则它会把自己报成差异）。 */
+function isIgnored(rel, ignoreList) {
+    if (rel.split("/").pop() === IGNORE_FILE_NAME) return true
+    for (const entry of ignoreList) {
+        if (entry.endsWith("/")) {
+            if (rel.startsWith(entry)) return true
+        } else if (rel === entry) {
+            return true
+        }
+    }
+    return false
+}
 
 // 按**目录名**排除：依赖、缓存、构建产物（任何层级出现都跳过）
 const DEFAULT_EXCLUDES = new Set(["node_modules", ".git", "cache", ".npm-cache", "release", "_site", ".backups", ".tag-merge-backups"])
@@ -109,6 +150,9 @@ function parseArgs(argv) {
                 break
             case "--exclude":
                 args.excludes.push(value())
+                break
+            case "--ignore":
+                args.ignore = value()
                 break
             case "--json":
                 args.json = true
@@ -245,16 +289,22 @@ function groupByPrefix(files) {
 const FULL_LIST_LIMIT = 15
 
 function compare(instanceFiles, repoFiles, options = {}) {
-    const { quiet = false, verbose = false } = options
+    const { quiet = false, verbose = false, ignoreList = [] } = options
     const missingInRepo = []
     const missingInInstance = []
     const differs = []
+    let ignored = 0
 
     for (const [rel, sha] of instanceFiles) {
+        if (isIgnored(rel, ignoreList)) {
+            ignored++
+            continue
+        }
         if (!repoFiles.has(rel)) missingInRepo.push(rel)
         else if (repoFiles.get(rel) !== sha) differs.push(rel)
     }
     for (const rel of repoFiles.keys()) {
+        if (isIgnored(rel, ignoreList)) continue
         if (!instanceFiles.has(rel)) missingInInstance.push(rel)
     }
 
@@ -275,9 +325,13 @@ function compare(instanceFiles, repoFiles, options = {}) {
     }
 
     console.log(
-        `\n结论：实例 ${instanceFiles.size} 个文件 · 仓库 ${repoFiles.size} 个文件 · 需回收 ${missingInRepo.length} · 内容不同 ${differs.length} · 仓库独有 ${missingInInstance.length}`
+        `\n结论：实例 ${instanceFiles.size} 个文件 · 仓库 ${repoFiles.size} 个文件 · 需回收 ${missingInRepo.length} · 内容不同 ${differs.length} · 仓库独有 ${missingInInstance.length}` +
+            (ignoreList.length ? ` · 忽略清单 ${ignoreList.length} 条（命中 ${ignored} 个实例文件）` : "")
     )
-    return { missingInRepo, differs, missingInInstance }
+    if (!quiet && ignoreList.length) {
+        console.log(`忽略清单：${IGNORE_FILE_NAME}（${ignoreList.length} 条）—— 命中的路径不计入差异`)
+    }
+    return { missingInRepo, differs, missingInInstance, ignored }
 }
 
 function main() {
@@ -289,7 +343,8 @@ function main() {
             ? readFileSync(resolve(args.against), "utf8")
             : serialize(buildManifest(args.root, args.excludes))
         const repoFiles = applyExclusionFilter(parseFingerprint(repoText))
-        const result = compare(instanceFiles, repoFiles, { quiet: args.quiet, verbose: args.verbose })
+        const ignoreList = loadIgnoreList(args.ignore || args.root)
+        const result = compare(instanceFiles, repoFiles, { quiet: args.quiet, verbose: args.verbose, ignoreList })
         // 需要回收的文件即"实例比仓库新"，有则返回非零，方便脚本里当门禁用
         process.exit(result.missingInRepo.length || result.differs.length ? 1 : 0)
     }
