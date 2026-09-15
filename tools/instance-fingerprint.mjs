@@ -31,16 +31,23 @@
  *   --exclude <name>   追加排除的目录名（可重复）
  *   --json             指纹输出为 JSON（便于二次处理）
  *   --quiet            只输出结论行
+ *   --verbose          差异清单不折叠（默认按目录分组，大组只给计数）
  *
  * 判定说明
  *   只有实例有 → `MISSING_IN_REPO`（服务器侧改动/新增，拆分前必须回收）
  *   只有仓库有 → `MISSING_IN_INSTANCE`（仓库比实例新，或该文件没被部署过）
  *   内容不同   → `DIFFERS`
  *
- * 排除规则分两类：
+ * 排除规则：
  *   目录名（任何层级）：node_modules、.git、cache、.npm-cache、release、_site、.backups、.tag-merge-backups
  *   相对路径：content/data（users.json / sessions.json / analytics）、content/uploads（图片与附件）、content/cache
+ *   文件名：`.env` 及其变体（**绝不入库，也不该出现在"要回收"清单里**）、本工具自己的 `*.fingerprint.txt` 输出
  *   ⚠️ `content/themes/**` **参与比对** —— 模板定制正是最需要被发现的差异。
+ *
+ * 哈希口径：**删除所有 CR 字节**（等价于 `tr -d '\r'`）后再算 sha256。
+ * 这样 Linux 侧的纯 shell 兜底命令（find + sha256sum + tr -d '\r'）与本工具结果逐字节一致 ——
+ * 早期版本只在本地做 CRLF→LF 配对替换，遇到二进制文件里孤立的 0x0D 字节就会误报
+ * （实测：default 主题的 screenshot.avif 被误判为 DIFFERS）。
  */
 import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs"
 import { join, resolve, relative, basename } from "node:path"
@@ -58,8 +65,24 @@ const DEFAULT_EXCLUDED_PATHS = new Set([
     "content/cache",
 ])
 
+/**
+ * 按**文件名**排除。
+ *
+ * `.env` 必须排除：它是实例私有的密钥文件（COOKIE_SECRET），既不入库，也**绝不能**
+ * 出现在 MISSING_IN_REPO 里 —— 否则"把实例有、仓库没有的文件都回收一下"这个动作
+ * 会把密钥提交进 Git。`.env.example` 反过来是入库的模板，要照常比对。
+ *
+ * 本工具自己的输出（`*.fingerprint.txt`）也必须排除，否则第二次运行会把上一次的结果
+ * 当成"实例侧新增文件"报出来。
+ */
+function isExcludedFile(name) {
+    if (name.startsWith(".env") && name !== ".env.example") return true
+    if (name.endsWith(".fingerprint.txt")) return true
+    return false
+}
+
 function parseArgs(argv) {
-    const args = { root: ".", excludes: [], json: false, quiet: false }
+    const args = { root: ".", excludes: [], json: false, quiet: false, verbose: false }
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i]
         const value = () => {
@@ -93,6 +116,9 @@ function parseArgs(argv) {
             case "--quiet":
                 args.quiet = true
                 break
+            case "--verbose":
+                args.verbose = true
+                break
             case "--help":
             case "-h":
                 console.log(readFileSync(new URL(import.meta.url)).toString().split("*/")[0].replace(/^\/\*\*?/, "").replace(/^ ?\* ?/gm, ""))
@@ -106,10 +132,10 @@ function parseArgs(argv) {
     return args
 }
 
-/** CRLF→LF 归一化后取 sha256（latin1 保证任意字节一对一映射）。 */
+/** 删除所有 CR 字节后取 sha256（latin1 保证任意字节一对一映射，与 `tr -d '\r'` 等价）。 */
 function hashFile(full) {
     const buffer = readFileSync(full)
-    const normalized = buffer.toString("latin1").replace(/\r\n/g, "\n")
+    const normalized = buffer.toString("latin1").replace(/\r/g, "")
     return createHash("sha256").update(normalized, "latin1").digest("hex")
 }
 
@@ -131,6 +157,7 @@ function walk(dir, ctx, out = []) {
             continue
         }
         if (!entry.isFile()) continue
+        if (isExcludedFile(entry.name)) continue
         let size = 0
         try {
             size = statSync(full).size
@@ -182,7 +209,43 @@ function parseFingerprint(text) {
     return files
 }
 
-function compare(instanceFiles, repoFiles, quiet) {
+/**
+ * 解析后再过一遍排除规则。
+ *
+ * 为什么不能只在遍历目录时排除：比对用的指纹可能是**别处生成**的 —— 旧版本工具、
+ * Linux 上的纯 shell 兜底命令、甚至一份手写的清单。`.env` 绝不能从这些来源漏进
+ * MISSING_IN_REPO，否则"回收实例独有的文件"这个动作就会把 COOKIE_SECRET 提交进 Git。
+ */
+function applyExclusionFilter(files) {
+    const out = new Map()
+    for (const [rel, sha] of files) {
+        const name = rel.split("/").pop()
+        if (isExcludedFile(name)) continue
+        if (DEFAULT_EXCLUDED_PATHS.has(rel)) continue
+        if ([...DEFAULT_EXCLUDED_PATHS].some((prefix) => rel.startsWith(`${prefix}/`))) continue
+        out.set(rel, sha)
+    }
+    return out
+}
+
+/** 按前两级目录分组（`content/themes/clean_blog/theme.json` → `content/themes/**`）。 */
+function groupByPrefix(files) {
+    const map = new Map()
+    for (const rel of files) {
+        const parts = rel.split("/")
+        const key = parts.length > 2 ? `${parts[0]}/${parts[1]}/**` : rel
+        const list = map.get(key) || []
+        list.push(rel)
+        map.set(key, list)
+    }
+    return [...map.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+}
+
+// 一个分组内文件数不超过这个值就逐个列出，否则只给计数（避免上百个第三方主题文件淹没真正的发现）
+const FULL_LIST_LIMIT = 15
+
+function compare(instanceFiles, repoFiles, options = {}) {
+    const { quiet = false, verbose = false } = options
     const missingInRepo = []
     const missingInInstance = []
     const differs = []
@@ -198,7 +261,13 @@ function compare(instanceFiles, repoFiles, quiet) {
     if (!quiet) {
         const dump = (title, list, hint) => {
             console.log(`\n${title}（${list.length}）${hint ? ` — ${hint}` : ""}`)
-            for (const rel of list.sort()) console.log(`  ${rel}`)
+            for (const [key, group] of groupByPrefix(list.sort())) {
+                if (group.length <= FULL_LIST_LIMIT || verbose) {
+                    for (const rel of group) console.log(`  ${rel}`)
+                } else {
+                    console.log(`  ${key}  ${group.length} 个文件（--verbose 展开）`)
+                }
+            }
         }
         dump("MISSING_IN_REPO  实例有、仓库没有", missingInRepo, "服务器侧改动/新增，拆分为新仓前必须回收")
         dump("DIFFERS          两边都有但内容不同", differs)
@@ -215,12 +284,12 @@ function main() {
     const args = parseArgs(process.argv.slice(2))
 
     if (args.compare) {
-        const instanceFiles = parseFingerprint(readFileSync(resolve(args.compare), "utf8"))
+        const instanceFiles = applyExclusionFilter(parseFingerprint(readFileSync(resolve(args.compare), "utf8")))
         const repoText = args.against
             ? readFileSync(resolve(args.against), "utf8")
             : serialize(buildManifest(args.root, args.excludes))
-        const repoFiles = parseFingerprint(repoText)
-        const result = compare(instanceFiles, repoFiles, args.quiet)
+        const repoFiles = applyExclusionFilter(parseFingerprint(repoText))
+        const result = compare(instanceFiles, repoFiles, { quiet: args.quiet, verbose: args.verbose })
         // 需要回收的文件即"实例比仓库新"，有则返回非零，方便脚本里当门禁用
         process.exit(result.missingInRepo.length || result.differs.length ? 1 : 0)
     }

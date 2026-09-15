@@ -4,6 +4,39 @@
 
 > 版本号遵循语义化。
 
+## [0.16.3] - 2026-09-15
+
+### 🔍 首次真机差异核对（xl 实例）：结果与处置
+
+用 `tools/instance-fingerprint.mjs` 对 xl 实例做第一次全量核对（428 个文件 vs 仓库 262），三类结果全部查清：
+
+**`MISSING_IN_REPO` 177 → 实为 1 + 176，都不是"热修"**
+
+| 内容 | 数量 | 处置 |
+|---|---|---|
+| `.env`（COOKIE_SECRET） | 1 | **不该回收** —— 见下文的工具修复 |
+| 后台装的主题 `clean_blog` / `editorial` / `midday` / `old_writer` / `pure` | 176 | 实例资产，按 `.gitignore` 设计不入库（记录来源即可） |
+
+**`DIFFERS` 3 → 1 个真差异 + 1 个伪差异 + 1 个无意义差异**
+
+| 文件 | 判定 | 说明 |
+|---|---|---|
+| `content/themes/default/partials/footer.html` | **真差异，已回收** | 线上 xl 与 xq 都多一层 `<div class="footer-row">`，仓库从未有过（`git log -S footer-row` 无记录，且全仓无该 class 的 CSS，属无效包裹）。已按线上内容回收，使仓库与生产一致；若确认多余，删掉后再同步两台即可 |
+| `content/themes/default/screenshot.avif` | **伪差异** | 两侧字节完全相同，是"删全部 CR"与"仅替换 CRLF 对"两种归一化实现不一致造成的误报（AVIF 里有孤立 0x0D 字节）→ 见工具修复 |
+| `.gitignore` | 无意义差异 | 服务器上是 403 B 的旧版；服务器不是 git 检出，该文件在那里不起作用，下次同步会被覆盖为当前 818 B 版本 |
+
+**`MISSING_IN_INSTANCE` 11** —— 均为仓库更新、尚未部署到 xl（`docs/**`、`TAG-GOVERNANCE.md`、`DEPLOYMENT-AI-TAGS.md`、`tools/backup-content.ps1`、`tools/rotate-security.ps1`、`tools/sync-today-to-server.ps1`、`docs/XL-PROJECT.md`）。属正常，之后用同步脚本推上去。
+
+### 🐛 工具修复：`.env` 会出现在"要回收"清单里 + 二进制伪差异 + 清单被淹没
+
+首次真机使用暴露了三个问题，全部修掉：
+
+1. **`.env` 被列为 `MISSING_IN_REPO`** —— 最危险的一条：只要照着"把实例有、仓库没有的文件回收一下"动手，`COOKIE_SECRET` 就进了 Git。现在按文件名排除 `.env` 及其变体（`.env.example` 例外，它是入库模板），并且**在解析指纹时也过滤一遍** —— 因为比对用的清单可能来自旧版工具或 Linux 上的纯 shell 兜底命令。本工具自己的 `*.fingerprint.txt` 输出同样排除（否则第二次运行会把上次结果当成新增文件）。
+2. **二进制伪差异** —— 归一化从"仅替换 CRLF 对"改为"**删除所有 CR 字节**"（等价 `tr -d '\r'`），与 Linux 侧 shell 兜底命令逐字节一致。这样两种生成方式可以互相校验，也消除了孤立 0x0D 造成的误报。
+3. **清单被淹没** —— 差异清单改为按前两级目录分组，单组超过 15 个文件只给计数（`content/themes/** 176 个文件（--verbose 展开）`），真正需要人看的少量文件仍然逐个列出。
+
+新增 `--verbose` 开关。本地验证：真实的 xl 指纹复跑后 `需回收 176`（全部为主题）且 `.env` 消失；伪造含 `.env` / `.env.example` / `content/data/users.json` / `old.fingerprint.txt` / `core/app.js` 的五条清单，只有后两条被保留，前三条正确过滤。
+
 ## [0.16.2] - 2026-09-15
 
 ### 🐛 修复 `instance-fingerprint` 漏比主题：`content/themes/**` 必须参与核对
