@@ -4,6 +4,57 @@
 
 > 版本号遵循语义化。
 
+## [0.16.1] - 2026-09-15
+
+### 🐛 回收一处「只在服务器上存在」的修复：Tabulator 卡在 Loading
+
+在为「把 xl 实例拆成独立项目」做前期核对时发现：服务器上的实例**不是 git 检出**（部署方式是 tar + scp 覆盖），所以就地手改过的文件既不在 `git status` 里，也没有任何提交记录。
+
+核对方法：`/assets/**`、`/core/admin/static/**`、`/content/themes/**` 这些路径是**公网可直接访问**的，于是逐个抓下来与本地仓库**按行尾归一化后**比对 sha256：
+
+| 路径 | 文件数 | 一致 | 不同 |
+|---|---|---|---|
+| `content/themes/ember/**`（xl 正在用 ember） | 17 | **17** | 0 |
+| `assets/**` | 11 | **11** | 0 |
+| `core/admin/static/**`（不含 vendors） | 87 | 86 | **1** |
+
+唯一不同的是 `core/admin/static/js/table/modules/tabulator.js`：**线上 xl 与 xq 都有、仓库里没有**，且线上版本是本地版本的**严格超集**（多 15 行，无本地独有内容）：
+
+```js
+// Fixed height + non-virtual vertical rendering. Without these, Tabulator
+// v6 can get into a resize ⇄ render feedback loop … which throws
+// "Maximum call stack size exceeded" and leaves the table stuck on "Loading".
+height: "calc(100vh - 320px)",
+renderVertical: "basic",
+// Never leave the table spinning forever if the data request fails.
+ajaxError: function (error) { … this.alert("加载表格数据失败：…") }
+```
+
+已按线上实际内容回收进仓库（`git diff` = +15 行），并把该文件补进同步清单 —— 漏出清单的文件既推不出去也拉不回来，这正是它当初只能存在于服务器上的原因（与 `core/utils/tag-cloud-utils.js` 属同一类事故）。
+
+### 🔧 新增 `tools/instance-fingerprint.mjs`：实例 ↔ 仓库差异核对
+
+拆分/迁移任何实例之前的第一步。在服务器实例目录内生成指纹，拉回本地与仓库指纹比对，输出三类差异：
+
+- `MISSING_IN_REPO` —— 实例有、仓库没有（**服务器侧改动，拆分前必须回收**）
+- `DIFFERS` —— 两边都有但内容不同
+- `MISSING_IN_INSTANCE` —— 仓库有、实例没有（仓库更新，或该文件从未部署到这台实例）
+
+关键细节：本地工作副本是 CRLF、服务器是 LF，**直接比 sha256 会得到"每个文件都不同"**（本次实测：ember 主题 17 个文件全部"不同"，逐行核对后 17/17 完全一致）。工具对所有文件先做 CRLF→LF 归一化（latin1 逐字节映射，二进制文件语义一致）再算哈希。默认排除 `content/`（实例数据）、`node_modules/`（各机自装）、缓存与归档目录；有需回收项时退出码为 1，可直接当门禁用。
+
+用法：
+
+```bash
+# 服务器上（实例目录内）
+node tools/instance-fingerprint.mjs --root . --out /tmp/xl.fingerprint.txt
+# 本机
+scp admin@<host>:/tmp/xl.fingerprint.txt .
+node tools/instance-fingerprint.mjs --root . --out xl-repo.fingerprint.txt
+node tools/instance-fingerprint.mjs --compare xl.fingerprint.txt --against xl-repo.fingerprint.txt
+```
+
+本地验证：构造「仓库副本（CRLF）/ 实例副本（LF + 1 个改动文件 + 1 个新增文件）」两组 24/25 个文件，比对精确报出 `MISSING_IN_REPO 1`、`DIFFERS 1`、`MISSING_IN_INSTANCE 0`；23 个仅行尾不同的文件**零误报**，退出码 1。
+
 ## [0.16.0] - 2026-09-13
 
 ### ✨ 后台「系统维护」页 —— 只读体检（/aether/maintenance）

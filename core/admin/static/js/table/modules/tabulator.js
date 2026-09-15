@@ -106,9 +106,24 @@ export function initializeTable(contentType, modalManager) {
         },
         responsiveLayout: "hide",
         layout: "fitColumns",
+        // Fixed height + non-virtual vertical rendering. Without these, Tabulator
+        // v6 can get into a resize ⇄ render feedback loop
+        // (adjustTableSize → tableResized → redraw → rerenderRows → _virtualRenderFill
+        //  → resize → …) which throws "Maximum call stack size exceeded" and leaves
+        // the table stuck on "Loading". Pagination is 10 rows, so vertical virtual
+        // rendering is unnecessary anyway.
+        height: "calc(100vh - 320px)",
+        renderVertical: "basic",
         selectable: true,
         placeholder: t(contentType === "pages" ? "table_noPagesFound" : "table_noPostsFound"),
         initialSort: [{ column: "updatedAt", dir: "desc" }],
+        // Never leave the table spinning forever if the data request fails.
+        ajaxError: function (error) {
+            console.error("Table data load failed:", error)
+            if (this && typeof this.alert === "function") {
+                this.alert("加载表格数据失败：" + (error && error.message ? error.message : "请刷新重试"))
+            }
+        },
         columns: baseColumns,
     })
 
