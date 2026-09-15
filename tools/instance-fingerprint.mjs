@@ -36,14 +36,27 @@
  *   只有实例有 → `MISSING_IN_REPO`（服务器侧改动/新增，拆分前必须回收）
  *   只有仓库有 → `MISSING_IN_INSTANCE`（仓库比实例新，或该文件没被部署过）
  *   内容不同   → `DIFFERS`
- *   content/ 与 node_modules/ 一律排除：前者是实例数据（已被 .gitignore），
- *   后者是依赖（各机器各自 npm i）。
+ *
+ * 排除规则分两类：
+ *   目录名（任何层级）：node_modules、.git、cache、.npm-cache、release、_site、.backups、.tag-merge-backups
+ *   相对路径：content/data（users.json / sessions.json / analytics）、content/uploads（图片与附件）、content/cache
+ *   ⚠️ `content/themes/**` **参与比对** —— 模板定制正是最需要被发现的差异。
  */
 import { readdirSync, readFileSync, writeFileSync, statSync } from "node:fs"
 import { join, resolve, relative, basename } from "node:path"
 import { createHash } from "node:crypto"
 
-const DEFAULT_EXCLUDES = new Set(["node_modules", ".git", "content", "cache", ".npm-cache", "release", "_site"])
+// 按**目录名**排除：依赖、缓存、构建产物（任何层级出现都跳过）
+const DEFAULT_EXCLUDES = new Set(["node_modules", ".git", "cache", ".npm-cache", "release", "_site", ".backups", ".tag-merge-backups"])
+
+// 按**相对路径**排除：只有实例数据与实例媒体该被排除。
+// 注意 content/themes 必须比对 —— 模板定制正是最需要发现的那类差异，
+// 早期版本粗暴排除整个 content/，会漏掉主题改动。
+const DEFAULT_EXCLUDED_PATHS = new Set([
+    "content/data", // 实例数据：users.json / sessions.json / settings.json / analytics
+    "content/uploads", // 实例媒体：图片与附件
+    "content/cache",
+])
 
 function parseArgs(argv) {
     const args = { root: ".", excludes: [], json: false, quiet: false }
@@ -100,7 +113,7 @@ function hashFile(full) {
     return createHash("sha256").update(normalized, "latin1").digest("hex")
 }
 
-function walk(dir, excludes, base = dir, out = []) {
+function walk(dir, ctx, out = []) {
     let entries
     try {
         entries = readdirSync(dir, { withFileTypes: true })
@@ -108,11 +121,13 @@ function walk(dir, excludes, base = dir, out = []) {
         return out
     }
     for (const entry of entries) {
-        if (excludes.has(entry.name)) continue
-        const full = join(dir, entry.name)
         if (entry.isSymbolicLink()) continue
+        const full = join(dir, entry.name)
+        const rel = ctx.base === dir ? entry.name : `${relative(ctx.base, full).split("\\").join("/")}`
         if (entry.isDirectory()) {
-            walk(full, excludes, base, out)
+            if (ctx.excludes.has(entry.name)) continue
+            if (ctx.excludedPaths.has(rel)) continue
+            walk(full, ctx, out)
             continue
         }
         if (!entry.isFile()) continue
@@ -122,20 +137,22 @@ function walk(dir, excludes, base = dir, out = []) {
         } catch {
             /* 读不到大小不影响指纹 */
         }
-        out.push({ rel: relative(base, full).split("\\").join("/"), sha256: hashFile(full), bytes: size })
+        out.push({ rel, sha256: hashFile(full), bytes: size })
     }
     return out
 }
 
 function buildManifest(rootPath, extraExcludes) {
     const excludes = new Set([...DEFAULT_EXCLUDES, ...extraExcludes])
+    const excludedPaths = new Set(DEFAULT_EXCLUDED_PATHS)
     const root = resolve(rootPath)
-    const files = walk(root, excludes).sort((a, b) => a.rel.localeCompare(b.rel))
+    const files = walk(root, { base: root, excludes, excludedPaths }).sort((a, b) => a.rel.localeCompare(b.rel))
     return {
         generatedAt: new Date().toISOString(),
         root,
         by: `instance-fingerprint@${process.platform}`,
         excludes: [...excludes].sort(),
+        excludedPaths: [...excludedPaths].sort(),
         fileCount: files.length,
         files,
     }
@@ -149,6 +166,7 @@ function serialize(manifest) {
         `# root ${manifest.root}`,
         `# files ${manifest.fileCount}`,
         `# excludes ${manifest.excludes.join(",")}`,
+        `# excludedPaths ${(manifest.excludedPaths || []).join(",")}`,
         ...manifest.files.map((file) => `${file.sha256}  ${file.rel}`),
         "",
     ].join("\n")

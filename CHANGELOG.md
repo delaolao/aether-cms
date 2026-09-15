@@ -4,6 +4,31 @@
 
 > 版本号遵循语义化。
 
+## [0.16.2] - 2026-09-15
+
+### 🐛 修复 `instance-fingerprint` 漏比主题：`content/themes/**` 必须参与核对
+
+首次在服务器上使用前的自查发现：工具原先把**整个 `content/` 目录**排除，理由是"实例数据不入库"。但 `content/themes/**` 是**入库的代码/资源** —— 而且它正是 xl 拆分后最需要被发现差异的地方（模板定制）。带着这个缺陷去做拆分核对，会漏掉主题改动，等于把最该保护的东西漏在检查之外。
+
+改为两类排除：
+
+| 类型 | 内容 |
+|---|---|
+| 目录名（任何层级） | `node_modules`、`.git`、`cache`、`.npm-cache`、`release`、`_site`、`.backups`、`.tag-merge-backups` |
+| 相对路径 | `content/data`（users.json / sessions.json / analytics）、`content/uploads`（图片与附件）、`content/cache` |
+
+`content/themes/**` 参与比对；指纹头部新增 `# excludedPaths` 行，一眼能看出排除了什么。
+
+本地验证（夹具 = 「仓库副本 CRLF」/「实例副本 LF + 改 1 个主题模板 + 新增 1 个模板」共 40/41 个文件）：
+
+| 判定 | 结果 |
+|---|---|
+| 改动主题模板 | `DIFFERS content/themes/ember/templates/collection.html` ✅ |
+| 新增主题模板 | `MISSING_IN_REPO content/themes/ember/templates/xl-extra.html` ✅ |
+| 仅行尾不同的 39 个文件 | 零误报 ✅ |
+
+顺带得到一个交叉验证：本仓指纹的文件数 **261** 与 GitHub `aether-cms-xl/main` 文件树里的 blob 数 **261** 一致。
+
 ## [0.16.1] - 2026-09-15
 
 ### 🐛 回收一处「只在服务器上存在」的修复：Tabulator 卡在 Loading
