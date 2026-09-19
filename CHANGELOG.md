@@ -4,6 +4,43 @@
 
 > 版本号遵循语义化。
 
+## [0.16.5] - 2026-09-19
+
+### 🕒 站点时区：展示层时间与服务器时区解耦
+
+**问题**：时间在「存储」与「展示」两层的约定不一致 —— `publishDate` 是**站点墙钟时间**
+（`2026-09-18T00:30`，无时区标记），而 `createdAt`/`updatedAt`/访问事件 `t` 是 **UTC ISO**。
+展示层则各写各的：有的直接打印 UTC（后台「最近访问」原样输出 `2026-09-18T23:12:52.336Z`），
+有的依赖进程本地时区（服务端 `toLocaleDateString()`）。后果：
+
+- 北京时间 00:00–07:59 发布的文章，前台日期**少一天**（LiteNode 的 `dateFormat` 默认 `useUTC=true`；
+  线上实测中招 2 篇）；
+- 后台统计时间比北京时间少 8 小时，维护页还手写了 `" UTC"` 后缀；
+- 一旦服务器不在东八区，按天分档、内容排序、sitemap 日期会整体偏移。
+
+**方案**：引入显式「站点时区」，与服务器进程时区**解耦**。来源优先级：
+`SITE_TIME_ZONE` 环境变量 → `settings.json` 的 `timeZone` → 默认 `Asia/Shanghai`。
+
+- 新增 `core/utils/time-utils.js`：`parseSiteDateTime` / `formatInSiteZone` / `siteDayKey` /
+  `displayDateOf` / `contentInstant` / `getSiteTimeZone`；`app.js` 用
+  `configureSiteTimeZoneProvider()` 注入「读设置」的方式 —— 读的是同步缓存，后台改设置**立刻生效、无需重启**
+- 后台「设置 → 常规」新增**站点时区**下拉（zh/en i18n 齐全）
+- 前台日期改为数据层预计算的 `displayDate`：8 个模板由 `{{ … | dateFormat('YYYY-MM-DD') }}`
+  改为 `{{ metadata.displayDate }}`
+- 后台「最近访问」、CSV 导出表头 `exported:`、维护页 `generatedAt` / 「最近更新」、
+  站内搜索 `/search` 结果日期、人类可读 `/sitemap.html` 的条目与页脚、前台管理条「创建于/更新于」
+  全部改走站点时区
+- 按天分档 `dayKey()` 改用 `siteDayKey()`（原先依赖进程时区）；排序用的 `getContentDate()`
+  改用 `contentInstant()`（两种约定都按站点时区解释后再比较）
+
+**刻意不变**：存储仍是 UTC ISO，RSS `pubDate` 仍是 `toUTCString()`，sitemap `lastmod` 仍是
+`toISOString()`，后台表格与编辑器日期控件仍是浏览器本地时间。
+
+验证（同一份内容，进程时区分别设为 `Asia/Shanghai` 与 `UTC`，页面输出**完全一致**）：
+`publishDate 2026-09-18T00:30` → `2026-09-18`（修复前为 09-17）；
+`createdAt 2026-09-18T20:30Z`（北京 09-19 04:30）→ `2026-09-19`；
+UTC 进程下「最近访问」仍显示 `2026-09-19 09:25:32`；维护页 `generatedAt` 带 `timeZone: Asia/Shanghai`。
+
 ## [0.16.4] - 2026-09-15
 
 ### ✨ 实例指纹支持忽略清单，例行核对终于能「归零」

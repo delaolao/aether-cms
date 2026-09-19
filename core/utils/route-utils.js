@@ -1,4 +1,5 @@
 import { createAetherBarHtml } from "./aether-bar-utils.js"
+import { getContentDisplayDate } from "../lib/content/utils/content-utils.js"
 
 /**
  * Prepares template data with common properties
@@ -44,8 +45,39 @@ export async function prepareTemplateData(req, themeManager, siteSettings, addit
         ...additionalData,
     }
 
+    // 预计算「展示用日期」（站点时区）。
+    // 模板原先用 LiteNode 的 dateFormat（默认按 UTC）格式化 publishDate，而 publishDate 是
+    // 站点墙钟时间 → 北京时间 00:00–07:59 发布的文章会显示成**前一天**（线上实测已中招 2 篇）。
+    // 这里在数据层算好，模板直接用 {{ metadata.displayDate }}，且与服务器进程时区无关。
+    attachDisplayDates(baseData)
+
     // Add menu data to template
     return await themeManager.addMenuToTemplateData(baseData)
+}
+
+/**
+ * 给内容项挂上 displayDate（站点时区日期字符串）。
+ * 兼容两种形态：列表（`posts` 数组，元素含 frontmatter/metadata）与单项（`metadata`）。
+ * @param {Object} data
+ */
+function attachDisplayDates(data) {
+    if (!data || typeof data !== "object") return
+    const applyTo = (frontmatter) => {
+        if (!frontmatter || typeof frontmatter !== "object") return
+        if (frontmatter.displayDate === undefined) {
+            frontmatter.displayDate = getContentDisplayDate(frontmatter)
+        }
+    }
+
+    if (Array.isArray(data.posts)) {
+        for (const item of data.posts) {
+            if (!item) continue
+            applyTo(item.metadata)
+            applyTo(item.frontmatter)
+        }
+    }
+    applyTo(data.metadata)
+    applyTo(data.frontmatter)
 }
 
 /**

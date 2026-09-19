@@ -140,6 +140,8 @@
             settings_siteDescriptionHelp: "您站点的简短描述，可能被搜索引擎使用。",
             settings_siteUrl: "站点 URL",
             settings_siteUrlHelp: "您站点的完整 URL（例如 https://example.com）。",
+            settings_timeZone: "站点时区",
+            settings_timeZoneHelp: "站点的本地时区。文章日期、访问统计等时间均按此时区显示，与服务器时区无关。",
 
             settings_adminContact: "管理员联系",
             settings_adminEmail: "管理员邮箱",
@@ -572,6 +574,8 @@
             settings_siteDescriptionHelp: "A short description of your site. This may be used by search engines.",
             settings_siteUrl: "Site URL",
             settings_siteUrlHelp: 'The full URL of your site (e.g., https://example.com).',
+            settings_timeZone: "Site Time Zone",
+            settings_timeZoneHelp: "The local time zone of your site. Post dates and visitor statistics are shown in this time zone, regardless of the server time zone.",
 
             settings_adminContact: "Admin Contact",
             settings_adminEmail: "Admin Email",

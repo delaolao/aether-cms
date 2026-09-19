@@ -26,6 +26,7 @@ import { buildSocialMeta, canonicalUrl, extractVideosFromHtml } from "./lib/medi
 import { buildShareBar } from "./lib/media/share-bar.js"
 import { configureAttachments } from "./lib/media/attachments.js"
 import { configureTagAliases } from "./lib/content/utils/tag-aliases.js"
+import { configureSiteTimeZoneProvider } from "./utils/time-utils.js"
 
 // Import utilities
 import { handle404, handle500 } from "./utils/route-utils.js"
@@ -188,6 +189,11 @@ export async function setupApp(app, config) {
     // Tag aliases (content/data/tag-aliases.json): merges tags that mean the same
     // thing (cpu / 中央处理器) at read time, without rewriting content files.
     configureTagAliases({ dataDir: config.dataDir || "content/data" })
+
+    // 站点时区：所有「给人看」的时间（后台访问统计、维护页、前台文章日期）都按它呈现，
+    // 与服务器进程时区解耦。读的是 settingsService 的同步缓存，所以后台改设置立刻生效、
+    // 不需要重启。默认 Asia/Shanghai，可用环境变量 SITE_TIME_ZONE 覆盖。
+    configureSiteTimeZoneProvider(() => settingsService?.settings?.timeZone)
 
     // Warm covers in the background (never blocks startup) so list cards have
     // thumbnails without fetching during a request. New/updated posts warm too.

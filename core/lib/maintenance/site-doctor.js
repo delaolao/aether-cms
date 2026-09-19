@@ -17,6 +17,7 @@ import { readdir, readFile, stat } from "node:fs/promises"
 import { join, resolve, relative, extname } from "node:path"
 import { normalizeTagName, normalizeStageName, compareStageNames, slugify } from "../content/utils/content-utils.js"
 import { tagAliasStats, listTagAliasBackups } from "../content/utils/tag-aliases.js"
+import { formatSiteDateTime, getSiteTimeZone } from "../../utils/time-utils.js"
 
 // 正文里对上传文件的引用（`![](/content/uploads/images/x.png)`、`[附件](/content/uploads/documents/y.pdf)`）
 const UPLOAD_REF_RE = /\/content\/uploads\/[^\s)"'<>\]]+/g
@@ -184,7 +185,7 @@ async function checkContent({ paths, contentManager }) {
         })
         .filter((time) => time !== null)
         .sort((a, b) => a - b)
-    const latest = stamps.length ? `${new Date(stamps[stamps.length - 1]).toISOString().slice(0, 19).replace("T", " ")} UTC` : "—"
+    const latest = stamps.length ? formatSiteDateTime(new Date(stamps[stamps.length - 1])) : "—"
 
     const items = [
         { label: "文章", value: `${posts.length} 篇（已发布 ${published} · 草稿 ${drafts}）` },
@@ -640,7 +641,8 @@ export async function buildSiteReport({ paths, contentManager, analyticsStore, r
 
     return {
         ok: counts.error === 0,
-        generatedAt: new Date().toISOString().slice(0, 19).replace("T", " "),
+        generatedAt: formatSiteDateTime(new Date()),
+        timeZone: getSiteTimeZone(),
         tookMs: Date.now() - started,
         counts,
         issues,

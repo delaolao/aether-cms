@@ -3,6 +3,7 @@
  */
 
 import { extractPeerTubeId, readPeerTubeMetaSync, ensurePeerTubeMeta } from "../../media/peertube.js"
+import { contentInstant, displayDateOf } from "../../../utils/time-utils.js"
 
 /**
  * Every `[video:URL|Caption]` directive in a markdown string.
@@ -282,9 +283,10 @@ export function sortContentByDate(items) {
  * @returns {Date}
  */
 function getContentDate(frontmatter) {
-    const value = frontmatter?.publishDate || frontmatter?.createdAt
-    const parsed = value ? new Date(value) : new Date(0)
-    return isNaN(parsed.getTime()) ? new Date(0) : parsed
+    // publishDate 是**站点墙钟时间**（`2026-09-17T22:38`，无时区标记），createdAt 是 **UTC ISO**。
+    // 两种约定都交给 contentInstant() 按**站点时区**解释后再比较 —— 服务器进程时区换到
+    // 任何地方，排序结果都不变（以前依赖 new Date() 的进程时区，换机器就会偏移 8 小时）。
+    return contentInstant(frontmatter)
 }
 
 /**
@@ -295,6 +297,22 @@ function getContentDate(frontmatter) {
  */
 export function getContentDateValue(frontmatter) {
     return frontmatter?.publishDate || frontmatter?.createdAt
+}
+
+/**
+ * 展示用的日期字符串（**站点时区**，默认 `YYYY-MM-DD`）。
+ *
+ * 为什么要单独一个函数：模板里原先用 LiteNode 的 `dateFormat`（默认 `useUTC=true`）格式化
+ * `publishDate`，而 `publishDate` 是站点墙钟时间 → 北京时间 00:00–07:59 发布的文章会被
+ * 显示成**前一天**（线上实测中招 2 篇）。这里统一按站点时区解释两种约定并输出字符串，
+ * 模板直接 `{{ metadata.displayDate }}` 即可。
+ *
+ * @param {Object} frontmatter
+ * @param {string} [pattern]
+ * @returns {string}
+ */
+export function getContentDisplayDate(frontmatter, pattern = "YYYY-MM-DD") {
+    return displayDateOf(frontmatter, pattern)
 }
 
 /**

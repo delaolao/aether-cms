@@ -8,6 +8,8 @@
  * @returns {<string>} HTML, CSS and JavaScript for the Aether bar
  */
 
+import { formatInSiteZone } from "./time-utils.js"
+
 // Localized labels for the floating admin bar (frontend, logged-in).
 const I18N = {
     zh: {
@@ -183,10 +185,10 @@ export function createAetherBarHtml(options = {}) {
                 contentData.metadata
                     ? `
             <li><strong>${L.fieldCreated}:</strong> ${
-                contentData.metadata.createdAt ? new Date(contentData.metadata.createdAt).toLocaleDateString() : L.na
+                contentData.metadata.createdAt ? formatInSiteZone(contentData.metadata.createdAt, "YYYY-MM-DD") : L.na
             }</li>
             <li><strong>${L.fieldUpdated}:</strong> ${
-                contentData.metadata.updatedAt ? new Date(contentData.metadata.updatedAt).toLocaleDateString() : L.na
+                contentData.metadata.updatedAt ? formatInSiteZone(contentData.metadata.updatedAt, "YYYY-MM-DD") : L.na
             }</li>
             <li><strong>${L.fieldAuthor}:</strong> ${contentData.metadata.author || L.na}</li>
             <li><strong>${L.fieldStatus}:</strong> ${contentData.metadata.status || L.na}</li>

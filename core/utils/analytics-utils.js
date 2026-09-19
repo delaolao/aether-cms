@@ -9,6 +9,7 @@
  */
 
 import { dayKey } from "../lib/analytics/analytics-store.js"
+import { formatSiteDateTime } from "./time-utils.js"
 
 const UV_CACHE_TTL_MS = 60_000
 const uvCache = new Map() // `${from}|${to}` → { at, uvByDay, uvRange }
@@ -232,7 +233,8 @@ export async function buildAnalyticsReport(store, { days = 7, recentLimit = 50 }
             const decodedPath = safeDecode(ev.p || "")
             const isPathEvent = !key || String(key).startsWith("path:")
             recent.push({
-                time: ev.t,
+                // 站点时区可读时间（原先直接输出 UTC 的 ISO，比北京时间少 8 小时）
+                time: formatSiteDateTime(ev.t),
                 path: decodedPath,
                 title: ev.ti || (isPathEvent ? describePath(decodedPath) : meta.title || describePath(decodedPath)),
                 url: meta.slug ? `/notes/${meta.slug}` : decodedPath,
@@ -293,7 +295,7 @@ export function reportToCsv(report) {
     const header = [
         `# Aether CMS analytics export`,
         `# range: ${report.range.from} ~ ${report.range.to} (${report.range.days} days)`,
-        `# pv: ${report.totals.pv}, uv: ${report.totals.uv}, exported: ${new Date().toISOString()}`,
+        `# pv: ${report.totals.pv}, uv: ${report.totals.uv}, exported: ${formatSiteDateTime(new Date())}`,
         "",
     ]
 

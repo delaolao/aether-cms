@@ -1,6 +1,7 @@
 import { resolveTemplatePath } from "./template-utils.js"
 import { markdownToPlainText } from "../lib/content/utils/content-utils.js"
 import { canonicalizeTagList } from "../lib/content/utils/tag-aliases.js"
+import { formatInSiteZone } from "./time-utils.js"
 
 /**
  * SEO utilities for generating RSS and sitemap files with intelligent sitemap detection
@@ -558,7 +559,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
                 blogSection.items.push({
                     title: post.frontmatter.title,
                     url: `${baseUrl}/notes/${post.frontmatter.slug}`,
-                    date: new Date(post.frontmatter.updatedAt || post.frontmatter.createdAt).toLocaleDateString(),
+                    date: formatInSiteZone(post.frontmatter.updatedAt || post.frontmatter.createdAt, "YYYY-MM-DD"),
                 })
             }
         }
@@ -606,7 +607,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
             pagesSection.items.push({
                 title: page.frontmatter.title,
                 url: pageUrl,
-                date: new Date(page.frontmatter.updatedAt || page.frontmatter.createdAt).toLocaleDateString(),
+                date: formatInSiteZone(page.frontmatter.updatedAt || page.frontmatter.createdAt, "YYYY-MM-DD"),
             })
         }
 
@@ -620,7 +621,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
                 pagesSection.items.push({
                     title: page.frontmatter.title,
                     url: `${baseUrl}/notes/${page.frontmatter.slug}`,
-                    date: new Date(page.frontmatter.updatedAt || page.frontmatter.createdAt).toLocaleDateString(),
+                    date: formatInSiteZone(page.frontmatter.updatedAt || page.frontmatter.createdAt, "YYYY-MM-DD"),
                 })
             }
         }
@@ -934,7 +935,7 @@ export async function generateSitemapHtml({ posts, pages, siteSettings, baseUrl,
 
     htmlContent += `
         <footer>
-            <p>Last updated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+            <p>Last updated: ${formatInSiteZone(new Date(), "YYYY-MM-DD HH:mm")}</p>
             <a href="${baseUrl ? baseUrl : "/"}" class="home-link">Return to Homepage</a>
         </footer>
     </div>

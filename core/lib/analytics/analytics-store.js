@@ -18,13 +18,16 @@
 import { mkdir, readFile, writeFile, appendFile, readdir, unlink, rename } from "node:fs/promises"
 import { existsSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { siteDayKey } from "../../utils/time-utils.js"
 import { randomBytes } from "node:crypto"
 
 const FLUSH_INTERVAL_MS = 5000
 const MAX_DAY_HISTORY = 400 // keep daily aggregates this long (they are tiny)
 
 function dayKey(date = new Date()) {
-    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+    // 按**站点时区**取日期（不再依赖进程时区）：服务器换到任何时区，日报与留存
+    // 的跨日边界都仍然是站点时区的 00:00。
+    return siteDayKey(date)
 }
 
 function emptyDayEntry() {

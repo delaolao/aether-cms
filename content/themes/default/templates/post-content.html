@@ -3,7 +3,7 @@
         <h1 class="post-title">{{ metadata.title }}</h1>
         <h2>{{ metadata.subtitle }}</h2>
         <div class="post-meta">
-            <span class="post-date">{{#if metadata.publishDate}}{{ metadata.publishDate | dateFormat('YYYY-MM-DD') }}{{#else}}{{ metadata.createdAt | dateFormat('YYYY-MM-DD') }}{{/if}}</span>
+            <span class="post-date">{{ metadata.displayDate }}</span>
             <span class="post-author">By {{ metadata.author }}</span>
             {{#if metadata.stage}}<a class="post-stage" href="/stage/{{metadata.stage}}" title="学段">{{metadata.stage}}</a>{{/if}}
             <span class="post-views" title="阅读次数">👁 {{ viewCount || 0 }}</span>

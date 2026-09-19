@@ -30,6 +30,7 @@ import { prepareTemplateData, processTemplateData } from "../utils/route-utils.j
 import { resolveTemplatePath } from "../utils/template-utils.js"
 import { markdownToPlainText, slugify, truncateExcerpt, normalizeStageName } from "../lib/content/utils/content-utils.js"
 import { canonicalizeTagList, resolveTagIdentifier } from "../lib/content/utils/tag-aliases.js"
+import { formatInSiteZone, parseSiteDateTime } from "../utils/time-utils.js"
 
 /** Results per page (SEARCH_PER_PAGE, default 12). */
 const PER_PAGE = Math.max(1, Number(process.env.SEARCH_PER_PAGE || 12) || 12)
@@ -115,18 +116,21 @@ function normalizeTagList(tags) {
  * Dates coming out of the content manager are `Date` objects (frontmatter is
  * parsed), so they must never be compared or printed as raw strings —
  * `String(new Date())` is "Wed Sep 02 2026 …", which sorts by weekday name.
+ *
+ * 时区：`publishDate` 是**站点墙钟时间**（无时区标记），`createdAt`/`updatedAt` 是 UTC ISO。
+ * 两者都按**站点时区**解释（`parseSiteDateTime` 会识别末尾的 Z/±HH:MM），这样服务器进程
+ * 时区换到任何地方，搜索结果里的日期与排序都不会差一天。见 docs/XL-PROJECT.md。
  */
 function dateValue(value) {
     if (!value) return 0
     if (value instanceof Date) return value.getTime()
-    const time = Date.parse(String(value))
-    return isFinite(time) ? time : 0
+    const parsed = parseSiteDateTime(value)
+    return parsed ? parsed.getTime() : 0
 }
 
-/** "YYYY-MM-DD" for display / JSON. */
+/** "YYYY-MM-DD"（站点时区）for display / JSON. */
 function dateIso(value) {
-    const time = dateValue(value)
-    return time ? new Date(time).toISOString().slice(0, 10) : ""
+    return formatInSiteZone(value, "YYYY-MM-DD", { naiveIsSiteTime: true })
 }
 
 /** Plain-text document used for matching, built once per request. */

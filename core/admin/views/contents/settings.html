@@ -39,6 +39,20 @@
                     <input type="url" id="siteUrl" name="siteUrl" value="{{ settings.siteUrl }}" />
                     <p class="help-text" data-i18n="settings_siteUrlHelp">The full URL of your site (e.g., https://example.com).</p>
                 </div>
+
+                <!-- 站点时区：后台与前台所有「给人看」的时间都按它呈现，与服务器进程时区无关 -->
+                <div class="form-group">
+                    <label for="timeZone" data-i18n="settings_timeZone">Site Time Zone</label>
+                    <select id="timeZone" name="timeZone">
+                        <option value="Asia/Shanghai" {{ settings.timeZone="Asia/Shanghai" ? `selected` : `` }}>Asia/Shanghai（北京时间 UTC+8）</option>
+                        <option value="Asia/Urumqi" {{ settings.timeZone="Asia/Urumqi" ? `selected` : `` }}>Asia/Urumqi（乌鲁木齐 UTC+6）</option>
+                        <option value="Asia/Hong_Kong" {{ settings.timeZone="Asia/Hong_Kong" ? `selected` : `` }}>Asia/Hong_Kong（香港 UTC+8）</option>
+                        <option value="Asia/Taipei" {{ settings.timeZone="Asia/Taipei" ? `selected` : `` }}>Asia/Taipei（台北 UTC+8）</option>
+                        <option value="Asia/Tokyo" {{ settings.timeZone="Asia/Tokyo" ? `selected` : `` }}>Asia/Tokyo（东京 UTC+9）</option>
+                        <option value="UTC" {{ settings.timeZone="UTC" ? `selected` : `` }}>UTC</option>
+                    </select>
+                    <p class="help-text" data-i18n="settings_timeZoneHelp">所有时间（文章日期、访问统计、维护页）都按这个时区显示；服务器换成别的时区也不受影响。</p>
+                </div>
             </div>
 
             <div class="settings-section">
