@@ -39,7 +39,13 @@ function decodeSegment(value) {
     }
 }
 
-/** 给卡片挂上可点击的标签 chips（主题 collection.html 会渲染 metadata.tagsView） */
+/**
+ * 给卡片挂上可点击的标签 chips。
+ *
+ * ⚠️ 主题的 collection.html 在 `{{#each posts}}` 里读的是**文章级**的 `tagsView`
+ * （taxonomy.js 也是这么写的：`post.tagsView = tagsView`）。原先只写 `metadata.tagsView`，
+ * 所以学段页的卡片一直没有标签 chips。两处都写，兼容两种读法。
+ */
 function attachTagsView(posts) {
     for (const post of posts) {
         const metadata = post.metadata || post.frontmatter || {}
@@ -48,12 +54,15 @@ function attachTagsView(posts) {
             : typeof metadata.tags === "string" && metadata.tags.trim()
             ? metadata.tags.split(",").map((t) => t.trim()).filter(Boolean)
             : []
-        metadata.tagsView = tags.slice(0, 5).map((name) => ({
+        const tagsView = tags.slice(0, 5).map((name) => ({
             name,
+            slug: slugify(name),
             href: `/tag/${encodeURIComponent(slugify(name))}`,
             count: "",
             active: false,
         }))
+        post.tagsView = tagsView
+        metadata.tagsView = tagsView
     }
 }
 
